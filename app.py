@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import json
 import base64
+from bs4 import BeautifulSoup
 
 # Load environment variables
 load_dotenv()
@@ -67,13 +68,12 @@ def parse_backup_status(body):
     print(f"\nParsing email body for backup statuses...")
     print(f"Body preview: {body[:200]}...")
     
-    # Pattern to match Altaro VM Backup format:
-    # ServerName (ServerID)
-    # [Success/Failed]
-    # Date Time
+    # Updated pattern to match the HTML format:
+    # <span style="font-weight: bold">ServerName</span> <span style="font-size:10px">(ServerID)</span>
+    # <div title="Date Time" ...>Status</div>
     pattern = re.compile(
-        r'([^\n]+?)\s*\(([^\)]+)\)\s*\n\[(\w+)\]\s*\n(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
-        re.MULTILINE
+        r'<span style="font-weight: bold">([^<]+)</span>\s*<span style="font-size:10px">\(([^\)]+)\)</span>.*?<div title="(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})".*?<span[^>]*>(\w+)</span>',
+        re.DOTALL
     )
     
     results = []
@@ -83,10 +83,13 @@ def parse_backup_status(body):
     for match in matches:
         server_name = match.group(1).strip()
         server_id = match.group(2).strip()
-        status = match.group(3).strip()
-        dt_str = match.group(4).strip()
+        dt_str = match.group(3).strip()
+        status = match.group(4).strip()
+        
+        print(f"Raw date string from email: {dt_str}")
         
         try:
+            # Convert the timestamp string to a Python datetime object
             timestamp = datetime.strptime(dt_str, "%d %b %Y %H:%M")
         except Exception as e:
             print(f"Error parsing date '{dt_str}': {str(e)}")
@@ -104,6 +107,7 @@ def parse_backup_status(body):
 
 def get_body_from_parts(parts):
     body = ""
+    html_body = ""
     for part in parts:
         if part['mimeType'] == 'text/plain':
             if 'data' in part['body']:
@@ -111,9 +115,17 @@ def get_body_from_parts(parts):
                     body += base64.urlsafe_b64decode(part['body']['data']).decode()
                 except Exception as e:
                     print(f"Error decoding part: {e}")
+        elif part['mimeType'] == 'text/html':
+            if 'data' in part['body']:
+                try:
+                    html_body += base64.urlsafe_b64decode(part['body']['data']).decode()
+                except Exception as e:
+                    print(f"Error decoding HTML part: {e}")
         elif 'parts' in part:
-            body += get_body_from_parts(part['parts'])
-    return body
+            sub_body, sub_html = get_body_from_parts(part['parts'])
+            body += sub_body
+            html_body += sub_html
+    return body, html_body
 
 def check_email():
     try:
@@ -159,17 +171,26 @@ def check_email():
                 
                 # Get message body
                 body = ""
+                html_body = ""
                 if 'parts' in msg['payload']:
-                    body = get_body_from_parts(msg['payload']['parts'])
+                    body, html_body = get_body_from_parts(msg['payload']['parts'])
                 elif 'body' in msg['payload'] and 'data' in msg['payload']['body']:
                     try:
                         body = base64.urlsafe_b64decode(msg['payload']['body']['data']).decode()
                     except Exception as e:
                         print(f"Error decoding body: {e}")
-                
+                # If no plain text, try HTML
+                if not body and html_body:
+                    print("No plain text body found, using HTML body.")
+                    soup = BeautifulSoup(html_body, 'html.parser')
+                    body = soup.get_text(separator='\n')
                 if not body:
                     print("No email body found, skipping...")
                     continue
+                # Print the full plain text body for the first email
+                if message == messages[0]:
+                    print("Full plain text body for the first email:")
+                    print(body)
                 
                 # Parse for server statuses
                 statuses = parse_backup_status(body)
@@ -214,7 +235,7 @@ def index():
     latest_statuses = db.session.query(BackupStatus).join(
         subquery,
         (BackupStatus.server == subquery.c.server) & (BackupStatus.timestamp == subquery.c.max_time)
-    ).all()
+    ).order_by(BackupStatus.timestamp.desc()).all()
     print(f"Found {len(latest_statuses)} latest statuses")
     return render_template('index.html', statuses=latest_statuses)
 
