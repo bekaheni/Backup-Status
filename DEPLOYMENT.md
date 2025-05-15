@@ -70,25 +70,33 @@ b.  **Edit `.env` using `nano`:**
     ```bash
     nano .env
     ```
-    You will need to set several variables. Update the placeholder values accordingly.
+    The main purpose of editing this `.env` file is to set a unique `SECRET_KEY` for your application's security. Other values are generally fine as set by the `.env.example` template or are handled elsewhere.
+
+    Here's what the content will look like. Focus on changing `SECRET_KEY`:
 
     ```env
-    # These are mainly for reference; gmail_oauth_setup.py uses credentials.json for these.
-    GMAIL_CLIENT_ID='YOUR_GMAIL_CLIENT_ID_FROM_CREDENTIALS_JSON'
-    GMAIL_CLIENT_SECRET='YOUR_GMAIL_CLIENT_SECRET_FROM_CREDENTIALS_JSON'
-    
-    # Flask settings
-    FLASK_ENV='production' # Keep as production for deployment
-    FLASK_APP='app.py'     # Should match your main application file
-    
-    # CRITICAL: Set a strong, unique secret key for Flask session security.
+    # Optional: For reference. The OAuth setup script (gmail_oauth_setup.py)
+    # uses credentials.json for Client ID/Secret, not these values.
+    GMAIL_CLIENT_ID='YOUR_GMAIL_CLIENT_ID_PLACEHOLDER'
+    GMAIL_CLIENT_SECRET='YOUR_GMAIL_CLIENT_SECRET_PLACEHOLDER'
+
+    # Flask settings (usually leave as is for this project)
+    FLASK_ENV='production'
+    FLASK_APP='app.py'
+
+    # --- MANDATORY CHANGE --- #
+    # Replace the placeholder below with a real, strong, unique secret key.
     # Generate one using: python -c "import secrets; print(secrets.token_hex(32))"
     SECRET_KEY='your_very_strong_random_secret_key_here'
+    # --- END MANDATORY CHANGE --- #
     ```
-    *   **`GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`**: You can populate these from your `credentials.json` for completeness. However, note that `gmail_oauth_setup.py` (as per Section 4) directly uses `credentials.json` for the OAuth flow.
-    *   **`FLASK_ENV`**: Should be `production` for deployment.
-    *   **`FLASK_APP`**: Usually `app.py` unless your main Flask file is named differently.
-    *   **`SECRET_KEY`**: This is **essential**. Replace `'your_very_strong_random_secret_key_here'` with a long, random, and unique string. The comment provides a command to generate one.
+    **Key actions for the `.env` file:**
+
+    *   **`SECRET_KEY`**: **This is the most important setting you MUST change.** Replace the placeholder `'your_very_strong_random_secret_key_here'` with a long, random, and unique string. This is critical for securing user sessions. The comment block above this line in the file shows a command you can run on your server to generate a suitable key.
+
+    *   **`GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`**: You can generally leave these with their placeholder values (e.g., `'YOUR_GMAIL_CLIENT_ID_PLACEHOLDER'`). The script that sets up Gmail access (`gmail_oauth_setup.py`, covered in Section 4) uses your separate `credentials.json` file for the actual Client ID and Secret, not these lines in `.env`. If you do wish to populate these for your own reference in the `.env` file, the values can be found within your `credentials.json` file (which you download from the Google Cloud Console).
+
+    *   **`FLASK_ENV` / `FLASK_APP`**: For this project, these are typically left as `production` and `app.py` respectively, as they were copied from the `.env.example` file.
 
     **Nano Editor Tips:**
     *   **Pasting**: To paste text (e.g., your Client ID, Secret, or generated Secret Key), you can usually use `Ctrl+Shift+V` (on Linux desktops) or `Right-click` -> `Paste` in your SSH terminal window. Some terminals might use other shortcuts like `Shift+Insert`.
@@ -97,10 +105,19 @@ b.  **Edit `.env` using `nano`:**
 
 ### 4. Generate Gmail OAuth Token (`gmail_token.json`)
 
-The application requires `gmail_token.json` for OAuth2 authentication with Gmail. You'll need to run the `gmail_oauth_setup.py` script *on the server* to generate this token.
+The application requires `gmail_token.json` for OAuth2 authentication with Gmail. 
 
-a.  **Temporarily allow access:**
-    Since your server likely doesn't have a graphical browser, you might need to run this script on a local machine that *does* have a browser, using the server's `credentials.json` (if the redirect URIs allow it). Alternatively, if your Google Cloud OAuth consent screen is configured for "Desktop app", you can run it on the server. The script will print a URL. You need to open this URL in a browser on any machine, authorize the application, and then paste the authorization code back into the terminal on the server.
+**Option 1: Copying an Existing Token (Recommended if available and valid)**
+If you have already run the `gmail_oauth_setup.py` script (e.g., during local development or on another machine using the *exact same* `credentials.json` that you will use on this server) and have a valid `gmail_token.json`, you can securely copy this existing file to the project root (`/var/www/backup-status/`) on the server. 
+*   **Caution**: Ensure this `gmail_token.json` corresponds to the `credentials.json` you are using for this deployment and has the correct scopes. 
+*   If you use this method, you can skip step 4b below. If in doubt, proceed with Option 2 to generate a new token on the server.
+
+**Option 2: Generating a New Token on the Server**
+If you don't have an existing valid token, or prefer to generate one fresh on the server, you'll need to run the `gmail_oauth_setup.py` script *on the server* as described below.
+
+a.  **Prerequisites for generating a new token:**
+    *   Ensure your `credentials.json` (downloaded from Google Cloud Console for your project) is present in the project root on the server.
+    *   You'll need a way to access a web browser to authorize the application, as the script will provide a URL.
 
     **Important:** Ensure your `credentials.json` (downloaded from Google Cloud Console, usually named `client_secret_....json` and renamed to `credentials.json` for the setup script) is present in the project root on the server before running the script.
 
