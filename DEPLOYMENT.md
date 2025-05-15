@@ -13,17 +13,31 @@ This guide outlines the steps to deploy the Backup Status Dashboard (a Python Fl
     sudo apt install python3 python3-pip python3-venv
     ```
 5.  **Domain Name (Optional)**: If you want to access the dashboard via a domain name, ensure it's configured to point to your server's IP address.
+6.  **Application Directory**: Create the directory where the application will live and set appropriate ownership. It's common practice to use `/var/www/` for web applications.
+
+    ```bash
+    sudo mkdir -p /var/www/backup-status
+    # Replace 'your_user' with the user that will run the Gunicorn process
+    # This user should be the same one specified in the systemd service file
+    sudo chown -R adminlocal:adminlocal /var/www/backup-status
+    # It's also common to use www-data as the group:
+    # sudo chown -R adminlocal:www-data /var/www/backup-status
+    sudo chmod -R 755 /var/www/backup-status
+    ```
+    You will clone your application into `/var/www/backup-status` later.
 
 ## Deployment Steps
 
 ### 1. Clone the Repository
 
-Connect to your Ubuntu server via SSH and clone the project repository:
+Connect to your Ubuntu server via SSH. Navigate to the directory you created for the application (`/var/www/backup-status`) and then clone the project repository:
 
 ```bash
-git clone https://github.com/bekaheni/Backup-Status.git
-cd Backup-Status
+cd /var/www/backup-status
+# Clone the repository into the current directory
+git clone https://github.com/bekaheni/Backup-Status.git .
 ```
+This guide will assume the project files are directly under `/var/www/backup-status`.
 
 ### 2. Set Up Python Virtual Environment & Install Dependencies
 
@@ -98,7 +112,7 @@ a.  **Install Gunicorn (if not already in `requirements.txt`, add it and `pip in
     Make sure Gunicorn is in your `requirements.txt`. If not, add it and reinstall requirements.
 
 b.  **Test Gunicorn:**
-    From your project root (`/Backup-Status`), with the virtual environment active, run:
+    From your project root (`/var/www/backup-status`), with the virtual environment active, run:
 
     ```bash
     gunicorn --workers 3 --bind 0.0.0.0:8000 app:app
@@ -141,13 +155,13 @@ b.  **Create an Nginx Server Block File:**
         }
 
         location /static {
-            alias /path/to/your/Backup-Status/static; # Replace with actual path
+            alias /var/www/backup-status/static; # Path to static files
         }
     }
     ```
     **Important**:
     *   Update `your_domain_or_IP`.
-    *   Update `/path/to/your/Backup-Status/static` with the absolute path to your project's `static` directory (e.g., `/home/your_user/Backup-Status/static` or `/var/www/Backup-Status/static` if you move it there). If your app serves static files directly through Flask and Gunicorn (common for smaller apps), you might not strictly need the `location /static` block, but it's good practice for Nginx to handle them. Your current `index.html` references Materialize CSS via CDN, so this static block might be less critical for now unless you add local static assets.
+    *   The `alias /var/www/backup-status/static;` line should point to the absolute path to your project's `static` directory. If your app serves static files directly through Flask and Gunicorn (common for smaller apps), you might not strictly need the `location /static` block, but it's good practice for Nginx to handle them. Your current `index.html` references Materialize CSS via CDN, so this static block might be less critical for now unless you add local static assets.
 
 c.  **Enable the Nginx Server Block:**
     Create a symbolic link from `sites-available` to `sites-enabled`:
@@ -184,11 +198,11 @@ a.  **Create a `systemd` Service File:**
     After=network.target
 
     [Service]
-    User=your_user # Replace with the user that owns the Backup-Status directory
+    User=adminlocal # Replace with the user that owns the Backup-Status directory
     Group=www-data # Or the group of your_user
-    WorkingDirectory=/path/to/your/Backup-Status # Replace with actual path
-    Environment="PATH=/path/to/your/Backup-Status/venv/bin" # Replace with actual path
-    ExecStart=/path/to/your/Backup-Status/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 app:app
+    WorkingDirectory=/var/www/backup-status
+    Environment="PATH=/var/www/backup-status/venv/bin"
+    ExecStart=/var/www/backup-status/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 app:app
 
     Restart=always
 
@@ -196,8 +210,8 @@ a.  **Create a `systemd` Service File:**
     WantedBy=multi-user.target
     ```
     **Important**:
-    *   Replace `your_user` with the actual username that will run the application (e.g., `ubuntu`, or a dedicated user you create). This user should have ownership/read/execute permissions for the project files and virtual environment.
-    *   Replace `/path/to/your/Backup-Status` with the absolute path to your project directory (e.g., `/home/your_user/Backup-Status`).
+    *   Replace `your_user` (now `adminlocal`) with the actual username that will run the application. This user (`adminlocal`) should have ownership/read/execute permissions for the project files and virtual environment.
+    *   The `WorkingDirectory`, `Environment` PATH, and `ExecStart` path should point to `/var/www/backup-status` and its subdirectories.
     *   Ensure the path to `gunicorn` and `venv/bin` in `Environment` and `ExecStart` are correct.
 
 b.  **Start and Enable the Service:**
@@ -240,7 +254,7 @@ You should now be able to access your Backup Status Dashboard by navigating to `
     *   Gunicorn/Application logs (via systemd): `sudo journalctl -u backup_status`.
     *   Flask application's own logging (if configured to write to files, check `app.py`).
 *   **`FLASK_ENV=production`**: For production, Flask disables the interactive debugger and uses more performant settings.
-*   **Database**: The `instance/backup_status.db` SQLite file will be created/used within the project directory. Ensure the Gunicorn process has write permissions to the `instance` directory and the database file if it needs to create or modify it.
+*   **Database**: The `instance/backup_status.db` SQLite file will be created/used within the project directory (e.g., `/var/www/backup-status/instance/backup_status.db`). Ensure the Gunicorn process has write permissions to the `instance` directory and the database file if it needs to create or modify it.
 *   **APScheduler**: The `APScheduler` is configured to run within the Flask app process. When Gunicorn runs with multiple workers, be mindful of how schedulers behave. For simple tasks like this, it's often fine, but for critical or resource-intensive scheduled tasks, a separate worker process or a dedicated scheduling system (like Celery with a message broker, or cron) might be considered in more complex applications. Given your current setup, it should run in one of the Gunicorn worker processes.
 
 --- 
