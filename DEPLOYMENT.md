@@ -169,9 +169,19 @@ b.  **Test Gunicorn:**
     gunicorn --workers 3 --bind 0.0.0.0:8000 app:app
     ```
     *   `app:app` refers to the `app` Flask instance inside your `app.py` file.
-    *   This will start Gunicorn on port 8000, accessible from any IP.
-    *   You can test this by navigating to `http://YOUR_SERVER_IP:8000` in a browser.
-    *   Press `Ctrl+C` to stop Gunicorn.
+    *   This will start Gunicorn on port 8000, accessible from any IP address that can reach your server.
+
+    **Firewall Note for Direct Gunicorn Testing:**
+    To access Gunicorn directly from your browser on `http://YOUR_SERVER_IP:8000` for this test, your server's firewall (e.g., `ufw`) must allow incoming connections on port 8000.
+    If you are using `ufw`, you can temporarily allow port 8000 *before running the Gunicorn command above* by executing:
+    ```bash
+    sudo ufw allow 8000/tcp
+    sudo ufw status # To verify the rule is added
+    ```
+    Remember that the main application will later be accessed via Nginx (e.g., on port 81 as configured in Section 6), so this port 8000 rule is primarily for this direct Gunicorn test. Nginx will communicate with Gunicorn internally on port 8000 (or 127.0.0.1:8000 as set in the systemd service).
+
+    *   After ensuring port 8000 is open and Gunicorn is running, you can test by navigating to `http://YOUR_SERVER_IP:8000` in a browser.
+    *   Press `Ctrl+C` to stop Gunicorn after testing.
 
 ### 6. Set Up Nginx as a Reverse Proxy
 
@@ -241,7 +251,7 @@ a.  **Create a `systemd` Service File:**
     sudo nano /etc/systemd/system/backup_status.service
     ```
 
-    Paste the following configuration. **Adjust paths and User/Group as necessary.**
+    Paste the following configuration into the file:
 
     ```ini
     [Unit]
@@ -249,38 +259,49 @@ a.  **Create a `systemd` Service File:**
     After=network.target
 
     [Service]
-    User=adminlocal # Replace with the user that owns the Backup-Status directory
-    Group=www-data # Or the group of your_user
+    User=adminlocal
+    Group=adminlocal
     WorkingDirectory=/var/www/backup-status
-    Environment="PATH=/var/www/backup-status/venv/bin"
-    ExecStart=/var/www/backup-status/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 app:app
-
+    Environment="PATH=/var/www/backup-status/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    Environment="USER=adminlocal"
+    Environment="HOME=/home/adminlocal"
+    ExecStart=/var/www/backup-status/venv/bin/gunicorn --workers 1 --bind 0.0.0.0:8000 --log-level=debug --access-logfile=- --error-logfile=- app:app
     Restart=always
 
     [Install]
     WantedBy=multi-user.target
     ```
-    **Important**:
-    *   Replace `your_user` (now `adminlocal`) with the actual username that will run the application. This user (`adminlocal`) should have ownership/read/execute permissions for the project files and virtual environment.
-    *   The `WorkingDirectory`, `Environment` PATH, and `ExecStart` path should point to `/var/www/backup-status` and its subdirectories.
-    *   Ensure the path to `gunicorn` and `venv/bin` in `Environment` and `ExecStart` are correct.
 
-b.  **Start and Enable the Service:**
+    **Important Notes:**
+    *   Replace `adminlocal` with your actual service user if different.
+    *   The `PATH` environment variable includes both the virtual environment's `bin` directory and standard system paths.
+    *   We're using `--workers 1` initially for easier debugging. You can increase this based on your server's resources.
+    *   The `--log-level=debug` and log file settings help with troubleshooting.
+    *   The service will automatically restart if it fails (`Restart=always`).
+
+b.  **Enable and Start the Service:**
 
     ```bash
     sudo systemctl daemon-reload
-    sudo systemctl start backup_status
-    sudo systemctl enable backup_status
+    sudo systemctl enable backup_status.service
+    sudo systemctl start backup_status.service
     ```
 
-c.  **Check Service Status:**
+c.  **Check the Service Status:**
 
     ```bash
-    sudo systemctl status backup_status
+    sudo systemctl status backup_status.service
     ```
-    You can also check its logs:
+
+    To view the logs:
     ```bash
-    sudo journalctl -u backup_status
+    sudo journalctl -u backup_status.service -f
+    ```
+
+    If you need to stop or restart the service:
+    ```bash
+    sudo systemctl stop backup_status.service
+    sudo systemctl restart backup_status.service
     ```
 
 ### 8. Configure Firewall (UFW)
