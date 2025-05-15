@@ -306,19 +306,43 @@ c.  **Check the Service Status:**
 
 ### 8. Configure Firewall (UFW)
 
-If you're using `ufw` (Uncomplicated Firewall), allow Nginx traffic. Since Nginx will be listening on port 81 for this application:
+If you're using `ufw` (Uncomplicated Firewall), you need to allow traffic for both:
+1. Port 8000 (for direct Gunicorn access during testing)
+2. Port 81 (for Nginx reverse proxy in production)
 
 ```bash
-sudo ufw allow 81/tcp  # Allow traffic to port 81
-# If you have another application using Nginx on port 80, you might already have 'Nginx Full' or port 80 allowed.
+# Allow Gunicorn direct access (port 8000) - needed for testing
+sudo ufw allow 8000/tcp
+
+# Allow Nginx reverse proxy access (port 81) - needed for production
+sudo ufw allow 81/tcp
+
+# If you have another application using Nginx on port 80, you might already have 'Nginx Full' or port 80 allowed
 # sudo ufw allow 'Nginx Full' # This allows both HTTP (80) and HTTPS (443)
+
 sudo ufw enable      # If not already enabled
-sudo ufw status
+sudo ufw status      # Verify the rules are added
 ```
+
+**Important Notes:**
+* Both ports (8000 and 81) need to be allowed in the firewall for the application to work properly.
+* Port 8000 is used for direct Gunicorn access (useful for testing).
+* Port 81 is used for the Nginx reverse proxy (recommended for production use).
+* You can verify the application is accessible through both:
+  * `http://your_server_ip:8000` (direct Gunicorn)
+  * `http://your_server_ip:81` (through Nginx)
 
 ## Accessing the Dashboard
 
-You should now be able to access your Backup Status Dashboard by navigating to `http://your_domain_or_IP:81` in your web browser (note the `:81` if you changed the port).
+You can access your Backup Status Dashboard in two ways:
+1. Direct Gunicorn access: `http://your_domain_or_IP:8000`
+2. Through Nginx (recommended): `http://your_domain_or_IP:81`
+
+The Nginx route (port 81) is recommended for production use as it provides:
+* Additional security layer
+* Better static file handling
+* Easier SSL/HTTPS configuration
+* Ability to host multiple applications
 
 ## Notes and Troubleshooting
 
