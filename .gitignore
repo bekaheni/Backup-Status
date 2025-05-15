@@ -1,2 +1,3 @@
 # Ignore Gmail OAuth token file
-gmail_token.json 
+gmail_token.json
+venv/ 
