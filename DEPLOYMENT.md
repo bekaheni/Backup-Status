@@ -194,7 +194,7 @@ b.  **Create an Nginx Server Block File:**
 
     ```nginx
     server {
-        listen 80;
+        listen 81;
         server_name your_domain_or_IP; # Replace with your server's IP or domain
 
         location / {
@@ -285,17 +285,19 @@ c.  **Check Service Status:**
 
 ### 8. Configure Firewall (UFW)
 
-If you're using `ufw` (Uncomplicated Firewall), allow Nginx traffic:
+If you're using `ufw` (Uncomplicated Firewall), allow Nginx traffic. Since Nginx will be listening on port 81 for this application:
 
 ```bash
-sudo ufw allow 'Nginx Full' # Allows both HTTP and HTTPS
-sudo ufw enable # If not already enabled
+sudo ufw allow 81/tcp  # Allow traffic to port 81
+# If you have another application using Nginx on port 80, you might already have 'Nginx Full' or port 80 allowed.
+# sudo ufw allow 'Nginx Full' # This allows both HTTP (80) and HTTPS (443)
+sudo ufw enable      # If not already enabled
 sudo ufw status
 ```
 
 ## Accessing the Dashboard
 
-You should now be able to access your Backup Status Dashboard by navigating to `http://your_domain_or_IP` in your web browser.
+You should now be able to access your Backup Status Dashboard by navigating to `http://your_domain_or_IP:81` in your web browser (note the `:81` if you changed the port).
 
 ## Notes and Troubleshooting
 
