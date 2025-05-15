@@ -56,28 +56,35 @@ pip install -r requirements.txt
 
 ### 3. Configure Environment Variables
 
-The application uses a `.env` file for configuration.
+The application uses a `.env` file for configuration. This file should not be committed to Git if it contains secrets (ensure it's in your `.gitignore` file).
 
 a.  **Copy the example file:**
+    The `.env.example` file in the repository provides the template for your `.env` file.
 
     ```bash
     cp .env.example .env
     ```
 
 b.  **Edit `.env`:**
-    Open `.env` with a text editor (like `nano` or `vim`) and fill in your Gmail Client ID and Client Secret:
+    Open the newly created `.env` file with a text editor (like `nano` or `vim`). You will need to set several variables:
 
     ```env
-    GMAIL_CLIENT_ID='YOUR_GMAIL_CLIENT_ID'
-    GMAIL_CLIENT_SECRET='YOUR_GMAIL_CLIENT_SECRET'
-    # Leave FLASK_ENV as production for deployment
-    FLASK_ENV='production'
-    # You can change the FLASK_APP if your main app file is different, but it's app.py
-    FLASK_APP='app.py'
-    # You can change the SECRET_KEY to a new random string for better security
-    SECRET_KEY='your_strong_random_secret_key'
+    # These are mainly for reference; gmail_oauth_setup.py uses credentials.json for these.
+    GMAIL_CLIENT_ID='YOUR_GMAIL_CLIENT_ID_FROM_CREDENTIALS_JSON'
+    GMAIL_CLIENT_SECRET='YOUR_GMAIL_CLIENT_SECRET_FROM_CREDENTIALS_JSON'
+    
+    # Flask settings
+    FLASK_ENV='production' # Keep as production for deployment
+    FLASK_APP='app.py'     # Should match your main application file
+    
+    # CRITICAL: Set a strong, unique secret key for Flask session security.
+    # Generate one using: python -c "import secrets; print(secrets.token_hex(32))"
+    SECRET_KEY='your_very_strong_random_secret_key_here'
     ```
-    Replace `'YOUR_GMAIL_CLIENT_ID'` and `'YOUR_GMAIL_CLIENT_SECRET'` with your actual credentials. Generate a new `SECRET_KEY`.
+    *   **`GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`**: You can populate these from your `credentials.json` for completeness. However, note that `gmail_oauth_setup.py` (as per Section 4) directly uses `credentials.json` for the OAuth flow.
+    *   **`FLASK_ENV`**: Should be `production` for deployment.
+    *   **`FLASK_APP`**: Usually `app.py` unless your main Flask file is named differently.
+    *   **`SECRET_KEY`**: This is **essential**. Replace `'your_very_strong_random_secret_key_here'` with a long, random, and unique string. The comment provides a command to generate one.
 
 ### 4. Generate Gmail OAuth Token (`gmail_token.json`)
 
