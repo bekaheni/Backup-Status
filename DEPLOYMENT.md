@@ -65,8 +65,12 @@ a.  **Copy the example file:**
     cp .env.example .env
     ```
 
-b.  **Edit `.env`:**
-    Open the newly created `.env` file with a text editor (like `nano` or `vim`). You will need to set several variables:
+b.  **Edit `.env` using `nano`:**
+    Open the newly created `.env` file using the `nano` text editor:
+    ```bash
+    nano .env
+    ```
+    You will need to set several variables. Update the placeholder values accordingly.
 
     ```env
     # These are mainly for reference; gmail_oauth_setup.py uses credentials.json for these.
@@ -85,6 +89,11 @@ b.  **Edit `.env`:**
     *   **`FLASK_ENV`**: Should be `production` for deployment.
     *   **`FLASK_APP`**: Usually `app.py` unless your main Flask file is named differently.
     *   **`SECRET_KEY`**: This is **essential**. Replace `'your_very_strong_random_secret_key_here'` with a long, random, and unique string. The comment provides a command to generate one.
+
+    **Nano Editor Tips:**
+    *   **Pasting**: To paste text (e.g., your Client ID, Secret, or generated Secret Key), you can usually use `Ctrl+Shift+V` (on Linux desktops) or `Right-click` -> `Paste` in your SSH terminal window. Some terminals might use other shortcuts like `Shift+Insert`.
+    *   **Saving Changes**: Press `Ctrl+O` (the letter O, not zero), then `Enter` to confirm the filename (`.env`).
+    *   **Exiting Nano**: Press `Ctrl+X`.
 
 ### 4. Generate Gmail OAuth Token (`gmail_token.json`)
 
