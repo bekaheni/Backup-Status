@@ -109,8 +109,26 @@ The application requires `gmail_token.json` for OAuth2 authentication with Gmail
 
 **Option 1: Copying an Existing Token (Recommended if available and valid)**
 If you have already run the `gmail_oauth_setup.py` script (e.g., during local development or on another machine using the *exact same* `credentials.json` that you will use on this server) and have a valid `gmail_token.json`, you can securely copy this existing file to the project root (`/var/www/backup-status/`) on the server. 
+
+*   **How to Copy**: You can use `scp` (Secure Copy Protocol) from your local machine's terminal or an SFTP client (like FileZilla, WinSCP).
+    *   **Using `scp` (Command Line):** 
+        The general format is: `scp -P <Port_If_Not_22> /path/to/local/gmail_token.json your_user@your_server_ip_or_domain:/path/to/destination/gmail_token.json`
+
+        **Example for a specific setup:**
+        If your `gmail_token.json` is at `c:\1\gmail_token.json` on your local Windows machine, your server username is `adminlocal`, your server domain is `serverstatus.bekat.co.uk`, your SSH port is `2323`, and the destination is `/var/www/backup-status/`, the command (run from your local Windows terminal like PowerShell or Git Bash) would be:
+        ```bash
+        # If using PowerShell/CMD with native OpenSSH scp.exe:
+        scp -P 2323 c:\1\gmail_token.json adminlocal@serverstatus.bekat.co.uk:/var/www/backup-status/gmail_token.json
+
+        # If using Git Bash or WSL (note the local path format /c/1/...):
+        # scp -P 2323 /c/1/gmail_token.json adminlocal@serverstatus.bekat.co.uk:/var/www/backup-status/gmail_token.json
+        ```
+        Remember to adjust the local path format (`c:\...` vs `/c/...`) depending on the terminal you use on your local Windows machine.
+
+    *   **Using an SFTP Client (Graphical):** Connect to your server using its IP/domain, your username, password/SSH key, and the SSH port if it's not the default (22). Then navigate to `/var/www/backup-status/` on the server and upload your local `gmail_token.json` file.
+
 *   **Caution**: Ensure this `gmail_token.json` corresponds to the `credentials.json` you are using for this deployment and has the correct scopes. 
-*   If you use this method, you can skip step 4b below. If in doubt, proceed with Option 2 to generate a new token on the server.
+*   If you use this method, you can skip step 4b (Run the setup script) below. If in doubt, proceed with Option 2 to generate a new token on the server.
 
 **Option 2: Generating a New Token on the Server**
 If you don't have an existing valid token, or prefer to generate one fresh on the server, you'll need to run the `gmail_oauth_setup.py` script *on the server* as described below.
