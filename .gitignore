@@ -1,3 +1,7 @@
 # Ignore Gmail OAuth token file
 gmail_token.json
-venv/ 
+venv/
+instance/
+__pycache__/
+*.pyc
+.env 
