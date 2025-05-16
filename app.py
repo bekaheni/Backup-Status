@@ -261,9 +261,12 @@ def init_db():
 # Initialize scheduler outside of if __name__ == '__main__' block
 # This ensures it runs in both development and production
 scheduler = BackgroundScheduler()
+# Add immediate job
+scheduler.add_job(func=check_email, trigger="date", run_date=datetime.now())
+# Add recurring job
 scheduler.add_job(func=check_email, trigger="interval", minutes=5)
 scheduler.start()
-print("Scheduler started - checking email every 5 minutes")
+print("Scheduler started - checking email immediately and then every 5 minutes")
 
 if __name__ == '__main__':
     init_db()
