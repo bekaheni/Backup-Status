@@ -17,11 +17,8 @@ This guide outlines the steps to deploy the Backup Status Dashboard (a Python Fl
 
     ```bash
     sudo mkdir -p /var/www/backup-status
-    # Replace 'your_user' with the user that will run the Gunicorn process
-    # This user should be the same one specified in the systemd service file
+    # First, set ownership to adminlocal for git operations
     sudo chown -R adminlocal:adminlocal /var/www/backup-status
-    # It's also common to use www-data as the group:
-    # sudo chown -R adminlocal:www-data /var/www/backup-status
     sudo chmod -R 755 /var/www/backup-status
     ```
     You will clone your application into `/var/www/backup-status` later.
@@ -259,12 +256,12 @@ a.  **Create a `systemd` Service File:**
     After=network.target
 
     [Service]
-    User=adminlocal
-    Group=adminlocal
+    User=www-data
+    Group=www-data
     WorkingDirectory=/var/www/backup-status
     Environment="PATH=/var/www/backup-status/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    Environment="USER=adminlocal"
-    Environment="HOME=/home/adminlocal"
+    Environment="USER=www-data"
+    Environment="HOME=/var/www"
     ExecStart=/var/www/backup-status/venv/bin/gunicorn --workers 1 --bind 0.0.0.0:8000 --log-level=debug --access-logfile=- --error-logfile=- app:app
     Restart=always
 
@@ -273,13 +270,23 @@ a.  **Create a `systemd` Service File:**
     ```
 
     **Important Notes:**
-    *   Replace `adminlocal` with your actual service user if different.
-    *   The `PATH` environment variable includes both the virtual environment's `bin` directory and standard system paths.
-    *   We're using `--workers 1` initially for easier debugging. You can increase this based on your server's resources.
-    *   The `--log-level=debug` and log file settings help with troubleshooting.
-    *   The service will automatically restart if it fails (`Restart=always`).
+    *   The service runs as `www-data` user and group for better security
+    *   The `PATH` environment variable includes both the virtual environment's `bin` directory and standard system paths
+    *   We're using `--workers 1` initially for easier debugging. You can increase this based on your server's resources
+    *   The `--log-level=debug` and log file settings help with troubleshooting
+    *   The service will automatically restart if it fails (`Restart=always`)
 
-b.  **Enable and Start the Service:**
+b.  **Set Correct Permissions:**
+    After setting up the service file, ensure the application directory has the correct permissions:
+
+    ```bash
+    # Change ownership to www-data for the service to run properly
+    sudo chown -R www-data:www-data /var/www/backup-status
+    # Ensure the virtual environment is accessible to www-data
+    sudo chmod -R 755 /var/www/backup-status
+    ```
+
+c.  **Enable and Start the Service:**
 
     ```bash
     sudo systemctl daemon-reload
@@ -287,7 +294,7 @@ b.  **Enable and Start the Service:**
     sudo systemctl start backup_status.service
     ```
 
-c.  **Check the Service Status:**
+d.  **Check the Service Status:**
 
     ```bash
     sudo systemctl status backup_status.service
@@ -304,55 +311,27 @@ c.  **Check the Service Status:**
     sudo systemctl restart backup_status.service
     ```
 
-### 8. Configure Firewall (UFW)
+### 8. Updating the Application
 
-If you're using `ufw` (Uncomplicated Firewall), you need to allow traffic for both:
-1. Port 8000 (for direct Gunicorn access during testing)
-2. Port 81 (for Nginx reverse proxy in production)
+When you need to update the application with new code:
 
 ```bash
-# Allow Gunicorn direct access (port 8000) - needed for testing
-sudo ufw allow 8000/tcp
+# Change to the application directory
+cd /var/www/backup-status
 
-# Allow Nginx reverse proxy access (port 81) - needed for production
-sudo ufw allow 81/tcp
+# Temporarily change ownership to adminlocal for git operations
+sudo chown -R adminlocal:adminlocal /var/www/backup-status
 
-# If you have another application using Nginx on port 80, you might already have 'Nginx Full' or port 80 allowed
-# sudo ufw allow 'Nginx Full' # This allows both HTTP (80) and HTTPS (443)
+# Pull the latest changes
+git pull
 
-sudo ufw enable      # If not already enabled
-sudo ufw status      # Verify the rules are added
+# Change ownership back to www-data for the service
+sudo chown -R www-data:www-data /var/www/backup-status
+
+# Restart the service to apply changes
+sudo systemctl restart backup_status.service
 ```
 
-**Important Notes:**
-* Both ports (8000 and 81) need to be allowed in the firewall for the application to work properly.
-* Port 8000 is used for direct Gunicorn access (useful for testing).
-* Port 81 is used for the Nginx reverse proxy (recommended for production use).
-* You can verify the application is accessible through both:
-  * `http://your_server_ip:8000` (direct Gunicorn)
-  * `http://your_server_ip:81` (through Nginx)
+### 9. Configure Firewall (UFW)
 
-## Accessing the Dashboard
-
-You can access your Backup Status Dashboard in two ways:
-1. Direct Gunicorn access: `http://your_domain_or_IP:8000`
-2. Through Nginx (recommended): `http://your_domain_or_IP:81`
-
-The Nginx route (port 81) is recommended for production use as it provides:
-* Additional security layer
-* Better static file handling
-* Easier SSL/HTTPS configuration
-* Ability to host multiple applications
-
-## Notes and Troubleshooting
-
-*   **Permissions**: Ensure file and directory permissions are correctly set, especially for the user running Gunicorn.
-*   **Logs**:
-    *   Nginx logs: `/var/log/nginx/access.log` and `/var/log/nginx/error.log`.
-    *   Gunicorn/Application logs (via systemd): `sudo journalctl -u backup_status`.
-    *   Flask application's own logging (if configured to write to files, check `app.py`).
-*   **`FLASK_ENV=production`**: For production, Flask disables the interactive debugger and uses more performant settings.
-*   **Database**: The `instance/backup_status.db` SQLite file will be created/used within the project directory (e.g., `/var/www/backup-status/instance/backup_status.db`). Ensure the Gunicorn process has write permissions to the `instance` directory and the database file if it needs to create or modify it.
-*   **APScheduler**: The `APScheduler` is configured to run within the Flask app process. When Gunicorn runs with multiple workers, be mindful of how schedulers behave. For simple tasks like this, it's often fine, but for critical or resource-intensive scheduled tasks, a separate worker process or a dedicated scheduling system (like Celery with a message broker, or cron) might be considered in more complex applications. Given your current setup, it should run in one of the Gunicorn worker processes.
-
---- 
+If you're using `
