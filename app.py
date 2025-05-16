@@ -258,13 +258,13 @@ def init_db():
         db.create_all()
         print("Database initialized")
 
+# Initialize scheduler outside of if __name__ == '__main__' block
+# This ensures it runs in both development and production
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=check_email, trigger="interval", minutes=5)
+scheduler.start()
+print("Scheduler started - checking email every 5 minutes")
+
 if __name__ == '__main__':
     init_db()
-    
-    # Set up scheduler
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=check_email, trigger="interval", minutes=5)
-    scheduler.start()
-    print("Scheduler started - checking email every 5 minutes")
-    
     app.run(debug=True) 
