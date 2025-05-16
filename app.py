@@ -251,7 +251,7 @@ def index():
         })
 
     print(f"Found {len(latest_statuses)} latest statuses")
-    return render_template('index.html', statuses=grouped_statuses)
+    return render_template('index.html', statuses=grouped_statuses, now=datetime.now())
 
 def init_db():
     with app.app_context():
