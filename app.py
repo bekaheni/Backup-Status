@@ -11,6 +11,7 @@ from google.auth.transport.requests import Request
 import json
 import base64
 from bs4 import BeautifulSoup
+from flask_migrate import Migrate
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +19,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///backup_status.db'
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # Database Model
 class BackupStatus(db.Model):
@@ -26,6 +28,7 @@ class BackupStatus(db.Model):
     status = db.Column(db.String(20), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False)
     subject = db.Column(db.String(200))
+    body = db.Column(db.Text)
 
 def get_gmail_service():
     try:
@@ -137,7 +140,7 @@ def check_email():
 
         # Get recent messages
         print("Fetching recent messages...")
-        results = service.users().messages().list(userId='me', maxResults=10).execute()
+        results = service.users().messages().list(userId='me', maxResults=50).execute()
         messages = results.get('messages', [])
         print(f"Found {len(messages)} recent messages")
         
@@ -187,6 +190,9 @@ def check_email():
                 if not body:
                     print("No email body found, skipping...")
                     continue
+                # Print the subject and a snippet of the body for each email
+                print(f"Email subject: {subject}")
+                print(f"Email body snippet: {body[:300]}\n{'-'*40}")
                 # Print the full plain text body for the first email
                 if message == messages[0]:
                     print("Full plain text body for the first email:")
@@ -209,7 +215,8 @@ def check_email():
                             server=s['server'],
                             status=s['status'],
                             timestamp=s['timestamp'],
-                            subject=subject
+                            subject=subject,
+                            body=body
                         )
                         db.session.add(new_status)
                         print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
@@ -247,11 +254,19 @@ def index():
             grouped_statuses[server] = []
         grouped_statuses[server].append({
             'status': status.status,
-            'timestamp': status.timestamp.strftime('%d/%m/%Y %H:%M')
+            'timestamp': status.timestamp.strftime('%d/%m/%Y %H:%M'),
+            'subject': status.subject,
+            'body': status.body
         })
 
     print(f"Found {len(latest_statuses)} latest statuses")
     return render_template('index.html', statuses=grouped_statuses, now=datetime.now())
+
+@app.route('/clear')
+def clear_backup_status():
+    db.session.query(BackupStatus).delete()
+    db.session.commit()
+    return 'All backup status records deleted.'
 
 def init_db():
     with app.app_context():

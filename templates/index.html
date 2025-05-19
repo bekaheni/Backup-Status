@@ -117,6 +117,11 @@
             font-weight: 600;
             letter-spacing: 1px;
         }
+        /* Force email HTML in modal to be readable in dark mode */
+        #modalBody, #modalBody * {
+            color: #fff !important;
+            background: transparent !important;
+        }
     </style>
 </head>
 <body>
@@ -138,7 +143,14 @@
         {% for server, statuses in statuses.items() %}
             {% set has_unsuccessful = statuses|selectattr('status', 'equalto', 'unsuccessful')|list|length > 0 %}
             <div class="col-lg-3 col-md-6 mb-4">
-                <div class="server-group{% if has_unsuccessful %} server-group-unsuccessful{% endif %}">
+                <div class="server-group{% if has_unsuccessful %} server-group-unsuccessful{% endif %}"
+                     style="cursor:pointer"
+                     data-bs-toggle="modal"
+                     data-bs-target="#emailModal"
+                     data-server="{{ server }}"
+                     data-subject="{{ statuses[0].subject|default('No subject') }}"
+                     data-timestamp="{{ statuses[0].timestamp|default('') }}"
+                     data-body="{{ statuses[0].body|default('No body')|e }}">
                     <div class="accent-bar{% if has_unsuccessful %} accent-bar-unsuccessful{% endif %}"></div>
                     <div class="server-content">
                         <div class="server-name">{{ server }}</div>
@@ -157,6 +169,37 @@
         </div>
     </div>
     
+    <!-- Modal -->
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+          <div class="modal-header">
+            <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <strong>Server:</strong> <span id="modalServer"></span><br>
+            <strong>Subject:</strong> <span id="modalSubject"></span><br>
+            <strong>Timestamp:</strong> <span id="modalTimestamp"></span>
+            <br><strong>Email Body:</strong>
+            <div id="modalBody" style="max-height: 300px; overflow-y: auto; background: #222; padding: 10px; border-radius: 6px; margin-top: 8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var emailModal = document.getElementById('emailModal');
+        emailModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            document.getElementById('modalServer').textContent = button.getAttribute('data-server');
+            document.getElementById('modalSubject').textContent = button.getAttribute('data-subject');
+            document.getElementById('modalTimestamp').textContent = button.getAttribute('data-timestamp');
+            document.getElementById('modalBody').innerHTML = button.getAttribute('data-body');
+        });
+    });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
