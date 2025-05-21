@@ -25,10 +25,13 @@
             padding-top: 0.5rem;
         }
         .header-info {
+            position: absolute;
+            top: 32px;
+            right: 40px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 1rem;
+            flex-direction: column;
+            align-items: flex-end;
+            z-index: 10;
         }
         .last-update, .total-servers {
             color: #00ff99;
@@ -167,35 +170,40 @@
     </style>
 </head>
 <body>
+    <div class="header-info">
+        <div class="last-update">Last Update: {{ last_update }}</div>
+        <div class="total-servers">Total Servers: {{ total_servers }}</div>
+    </div>
     <div class="container">
         <div class="header">
             <img src="{{ url_for('static', filename='bekat_logo.png') }}" alt="Bekat IT Logo" class="logo-img">
-            <div class="header-info">
-                <div class="last-update">Last Update: {{ last_update }}</div>
-                <div class="total-servers">Total Servers: {{ backup_statuses|length }}</div>
-            </div>
         </div>
         
         {% for company in companies %}
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
             <div class="server-grid">
-                {% for status in backup_statuses if status.company == company %}
+                {% for statuses in server_statuses[company] %}
+                {% set latest = statuses[0] %}
                 <div class="server-group" 
                      style="cursor:pointer"
                      data-bs-toggle="modal"
                      data-bs-target="#emailModal"
-                     data-server="{{ status.server }}"
-                     data-subject="{{ status.subject|default('No subject') }}"
-                     data-timestamp="{{ status.timestamp|default('') }}"
-                     data-body="{{ status.body|default('No body')|e }}">
-                    <div class="accent-bar {% if status.status == 'unsuccessful' %}accent-bar-unsuccessful{% endif %}"></div>
+                     data-server="{{ latest.server }}"
+                     data-subject="{{ latest.subject|default('No subject') }}"
+                     data-timestamp="{{ latest.timestamp|default('') }}"
+                     data-body="{{ latest.body|default('No body')|e }}">
+                    <div class="accent-bar {% if latest.status == 'unsuccessful' %}accent-bar-unsuccessful{% endif %}"></div>
                     <div class="server-content">
-                        <div class="server-name">{{ status.server }}</div>
-                        <div class="server-status {% if status.status == 'unsuccessful' %}status-unsuccessful{% endif %}">
-                            {{ status.status }}
-                        </div>
-                        <div class="server-date">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</div>
+                        <div class="server-name">{{ latest.server }}</div>
+                        <ul class="status-list">
+                            {% for status in statuses %}
+                            <li class="status-item">
+                                <span class="status-{{ status.status }}">{{ status.status|title }}</span>
+                                <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 </div>
                 {% endfor %}

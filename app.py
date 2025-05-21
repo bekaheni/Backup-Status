@@ -33,11 +33,11 @@ class BackupStatus(db.Model):
 
 # Server to Company mapping
 SERVER_COMPANIES = {
-    'LOCHLIE': 'Lochlie',
-    'EHEATING': 'eHeating',
-    'BRB': 'BRB',
-    'CASEMAN': 'CaseMan',
-    'JSWILSON': 'JS Wilson'
+    'LOCHLIE': 'Lochlie Ltd',
+    'EHEATING': 'eHeating Ltd',
+    'BRB': 'BRB Ltd',
+    'CASEMAN': 'Caseman Ltd',
+    'JSWILSON': 'JS Wilson Ltd'
 }
 
 def get_company_for_server(server_name):
@@ -252,27 +252,25 @@ def check_email():
 @app.route('/')
 def index():
     with app.app_context():
-        # Get the latest status for each server
-        latest_statuses = []
-        servers = db.session.query(BackupStatus.server).distinct().all()
-        
-        for server in servers:
-            latest = BackupStatus.query.filter_by(server=server[0])\
-                .order_by(BackupStatus.timestamp.desc())\
-                .first()
-            if latest:
-                latest_statuses.append(latest)
-        
-        # Get unique companies from the latest statuses
-        companies = sorted(set(status.company for status in latest_statuses))
-        
+        # Get all servers
+        servers = db.session.query(BackupStatus.server, BackupStatus.company).distinct().all()
+        # For each server, get the last 2 statuses
+        server_statuses = {}
+        for server, company in servers:
+            statuses = BackupStatus.query.filter_by(server=server).order_by(BackupStatus.timestamp.desc()).limit(2).all()
+            if statuses:
+                server_statuses.setdefault(company, []).append(statuses)
+        # Sort companies
+        companies = sorted(server_statuses.keys())
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
-        
-        return render_template('index.html', 
-                             backup_statuses=latest_statuses,
-                             companies=companies,
-                             last_update=last_update)
+        # Count total servers
+        total_servers = sum(len(servers) for servers in server_statuses.values())
+        return render_template('index.html',
+                              server_statuses=server_statuses,
+                              companies=companies,
+                              last_update=last_update,
+                              total_servers=total_servers)
 
 @app.route('/clear')
 def clear_backup_status():
