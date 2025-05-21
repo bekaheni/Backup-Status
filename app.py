@@ -283,10 +283,9 @@ def update_existing_companies():
     with app.app_context():
         statuses = BackupStatus.query.all()
         for status in statuses:
-            if not status.company:
-                status.company = get_company_for_server(status.server)
+            status.company = get_company_for_server(status.server)
         db.session.commit()
-        print("Updated existing records with company information")
+        print("Updated all records with new company information")
 
 def init_db():
     with app.app_context():
@@ -306,4 +305,5 @@ print("Scheduler started - checking email immediately and then every 5 minutes")
 
 if __name__ == '__main__':
     init_db()
+    update_existing_companies()  # TEMP: update company names in DB after mapping change
     app.run(debug=True) 
