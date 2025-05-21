@@ -24,16 +24,28 @@
             height: auto;
             padding-top: 0.5rem;
         }
-        .last-update {
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+        }
+        .last-update, .total-servers {
             color: #00ff99;
             font-size: 0.95rem;
             font-weight: 400;
             margin-top: 0.5rem;
         }
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
         .server-group {
             background: #184d23;
             border-radius: 10px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;  /* Remove margin since we're using grid gap */
             box-shadow: none;
             border: none;
             min-height: 70px;
@@ -122,51 +134,74 @@
             color: #fff !important;
             background: transparent !important;
         }
+        .company-section {
+            margin-bottom: 2rem;
+        }
+        
+        .company-name {
+            color: #2fff7f;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #2fff7f;
+        }
+
+        /* Add responsive design for smaller screens */
+        @media (max-width: 1200px) {
+            .server-grid {
+                grid-template-columns: repeat(2, 1fr);  /* 2 columns on medium screens */
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .server-grid {
+                grid-template-columns: 1fr;  /* Single column on mobile */
+            }
+        }
+
+        .server-date {
+            color: #bdbdbd;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <img src="{{ url_for('static', filename='bekat_logo.png') }}" alt="Bekat IT Logo" class="logo-img">
-        <div class="container text-center">
-            <div class="last-update">
-                Last Update: {{ now.strftime('%Y-%m-%d %H:%M') }} - Total Servers: {{ statuses|length }}
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='bekat_logo.png') }}" alt="Bekat IT Logo" class="logo-img">
+            <div class="header-info">
+                <div class="last-update">Last Update: {{ last_update }}</div>
+                <div class="total-servers">Total Servers: {{ backup_statuses|length }}</div>
             </div>
         </div>
-    </div>
-
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Backup Status</h2>
-            <button class="refresh-btn" onclick="window.location.reload()">Refresh Now</button>
-        </div>
-        <div class="row">
-        {% for server, statuses in statuses.items() %}
-            {% set has_unsuccessful = statuses|selectattr('status', 'equalto', 'unsuccessful')|list|length > 0 %}
-            <div class="col-lg-3 col-md-6 mb-4">
-                <div class="server-group{% if has_unsuccessful %} server-group-unsuccessful{% endif %}"
+        
+        {% for company in companies %}
+        <div class="company-section">
+            <h2 class="company-name">{{ company }}</h2>
+            <div class="server-grid">
+                {% for status in backup_statuses if status.company == company %}
+                <div class="server-group" 
                      style="cursor:pointer"
                      data-bs-toggle="modal"
                      data-bs-target="#emailModal"
-                     data-server="{{ server }}"
-                     data-subject="{{ statuses[0].subject|default('No subject') }}"
-                     data-timestamp="{{ statuses[0].timestamp|default('') }}"
-                     data-body="{{ statuses[0].body|default('No body')|e }}">
-                    <div class="accent-bar{% if has_unsuccessful %} accent-bar-unsuccessful{% endif %}"></div>
+                     data-server="{{ status.server }}"
+                     data-subject="{{ status.subject|default('No subject') }}"
+                     data-timestamp="{{ status.timestamp|default('') }}"
+                     data-body="{{ status.body|default('No body')|e }}">
+                    <div class="accent-bar {% if status.status == 'unsuccessful' %}accent-bar-unsuccessful{% endif %}"></div>
                     <div class="server-content">
-                        <div class="server-name">{{ server }}</div>
-                        <ul class="status-list">
-                            {% for status in statuses %}
-                            <li class="status-item">
-                                <span class="status-{{ status.status }}">{{ status.status|title }}</span>
-                                <span class="timestamp">{{ status.timestamp }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                        <div class="server-name">{{ status.server }}</div>
+                        <div class="server-status {% if status.status == 'unsuccessful' %}status-unsuccessful{% endif %}">
+                            {{ status.status }}
+                        </div>
+                        <div class="server-date">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-        {% endfor %}
         </div>
+        {% endfor %}
     </div>
     
     <!-- Modal -->

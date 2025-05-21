@@ -29,6 +29,23 @@ class BackupStatus(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     subject = db.Column(db.String(200))
     body = db.Column(db.Text)
+    company = db.Column(db.String(100))  # New field for company name
+
+# Server to Company mapping
+SERVER_COMPANIES = {
+    'LOCHLIE': 'Lochlie',
+    'EHEATING': 'eHeating',
+    'BRB': 'BRB',
+    'CASEMAN': 'CaseMan',
+    'JSWILSON': 'JS Wilson'
+}
+
+def get_company_for_server(server_name):
+    """Determine company name based on server name."""
+    for key, company in SERVER_COMPANIES.items():
+        if key in server_name.upper():
+            return company
+    return 'Other'  # Default company if no match found
 
 def get_gmail_service():
     try:
@@ -216,7 +233,8 @@ def check_email():
                             status=s['status'],
                             timestamp=s['timestamp'],
                             subject=subject,
-                            body=body
+                            body=body,
+                            company=get_company_for_server(s['server'])
                         )
                         db.session.add(new_status)
                         print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
@@ -233,34 +251,28 @@ def check_email():
 
 @app.route('/')
 def index():
-    print("\nRendering index page...")
-    # Subquery to get the latest timestamp for each server
-    subquery = db.session.query(
-        BackupStatus.server,
-        db.func.max(BackupStatus.timestamp).label('max_time')
-    ).group_by(BackupStatus.server).subquery()
-
-    # Join to get the full status row for each server's latest backup
-    latest_statuses = db.session.query(BackupStatus).join(
-        subquery,
-        (BackupStatus.server == subquery.c.server) & (BackupStatus.timestamp == subquery.c.max_time)
-    ).order_by(BackupStatus.server).all()
-
-    # Group statuses by server
-    grouped_statuses = {}
-    for status in latest_statuses:
-        server = status.server
-        if server not in grouped_statuses:
-            grouped_statuses[server] = []
-        grouped_statuses[server].append({
-            'status': status.status,
-            'timestamp': status.timestamp.strftime('%d/%m/%Y %H:%M'),
-            'subject': status.subject,
-            'body': status.body
-        })
-
-    print(f"Found {len(latest_statuses)} latest statuses")
-    return render_template('index.html', statuses=grouped_statuses, now=datetime.now())
+    with app.app_context():
+        # Get the latest status for each server
+        latest_statuses = []
+        servers = db.session.query(BackupStatus.server).distinct().all()
+        
+        for server in servers:
+            latest = BackupStatus.query.filter_by(server=server[0])\
+                .order_by(BackupStatus.timestamp.desc())\
+                .first()
+            if latest:
+                latest_statuses.append(latest)
+        
+        # Get unique companies from the latest statuses
+        companies = sorted(set(status.company for status in latest_statuses))
+        
+        # Get the latest update time
+        last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
+        
+        return render_template('index.html', 
+                             backup_statuses=latest_statuses,
+                             companies=companies,
+                             last_update=last_update)
 
 @app.route('/clear')
 def clear_backup_status():
@@ -268,9 +280,20 @@ def clear_backup_status():
     db.session.commit()
     return 'All backup status records deleted.'
 
+def update_existing_companies():
+    """Update existing records with company information."""
+    with app.app_context():
+        statuses = BackupStatus.query.all()
+        for status in statuses:
+            if not status.company:
+                status.company = get_company_for_server(status.server)
+        db.session.commit()
+        print("Updated existing records with company information")
+
 def init_db():
     with app.app_context():
         db.create_all()
+        update_existing_companies()
         print("Database initialized")
 
 # Initialize scheduler outside of if __name__ == '__main__' block
