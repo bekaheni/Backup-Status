@@ -306,4 +306,4 @@ print("Scheduler started - checking email immediately and then every 5 minutes")
 if __name__ == '__main__':
     init_db()
     update_existing_companies()  # TEMP: update company names in DB after mapping change
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5000, debug=False) 
