@@ -1,13 +1,13 @@
 # Deployment Guide: Backup Status Dashboard on Ubuntu
 
-This guide outlines the steps to deploy the Backup Status Dashboard (a Python Flask application) to an Ubuntu server. We'll use Gunicorn as the WSGI HTTP server and Nginx as a reverse proxy. `systemd` will be used to manage the Gunicorn process.
+> **Note:** The `requirements.txt` file in this project is generated using `pip freeze` and may include extra packages that are not strictly required for production. If you want a minimal requirements file, you can manually trim it to only the core dependencies. For most deployments, using the full file is safe and ensures all dependencies are present.
 
 ## Prerequisites
 
 1.  **Ubuntu Server**: Access to an Ubuntu server (e.g., via SSH).
 2.  **Sudo Privileges**: You'll need `sudo` access to install packages and configure services.
 3.  **Git**: `git` installed on the server (`sudo apt update && sudo apt install git`).
-4.  **Python 3 & Pip**: Python 3 and `pip` installed on the server.
+4.  **Python 3 & Pip**: Python 3.10+ and `pip` installed on the server.
     ```bash
     sudo apt update
     sudo apt install python3 python3-pip python3-venv
@@ -45,11 +45,18 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
+> **Windows users:** To activate the virtual environment on Windows, use:
+> ```powershell
+> .\venv\Scripts\activate
+> ```
+
 Install the required Python packages:
 
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** The `requirements.txt` file is generated from `pip freeze` and may include extra packages (such as `alembic`, `Flask-Migrate`, or `git-filter-repo`). These are safe to install, but if you want a minimal set, you can edit the file to only include the core dependencies for your app.
 
 ### 3. Configure Environment Variables
 
@@ -150,16 +157,9 @@ c.  **Secure the token:**
 
 Gunicorn will serve your Flask application.
 
-a.  **Install Gunicorn (if not already in `requirements.txt`, add it and `pip install gunicorn`):**
-    It's good practice to have gunicorn in your requirements:
-    ```bash
-    pip install gunicorn
-    # (then update your local requirements.txt and commit the change)
-    # echo "gunicorn" >> requirements.txt
-    ```
-    Make sure Gunicorn is in your `requirements.txt`. If not, add it and reinstall requirements.
+> **Note:** Gunicorn is included in the `requirements.txt` file. If you see errors about missing packages, ensure you have installed all requirements with `pip install -r requirements.txt`.
 
-b.  **Test Gunicorn:**
+a.  **Test Gunicorn:**
     From your project root (`/var/www/backup-status`), with the virtual environment active, run:
 
     ```bash
@@ -320,7 +320,7 @@ When you need to update the application with new code, follow these steps exactl
 cd /var/www/backup-status
 
 # 2. Temporarily change ownership to adminlocal for git operations
-sudo chown -R adminlocal:adminlocal /var/www/backup-status
+
 
 # 3. Pull the latest changes
 git pull

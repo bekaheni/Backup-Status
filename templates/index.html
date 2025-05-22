@@ -10,53 +10,85 @@
             background-color: #111;
             font-family: 'Segoe UI', Arial, sans-serif;
             color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .header {
             background: #111;
-            padding: 0 0 0.5rem 0;
-            margin-bottom: 2rem;
-            border-bottom: 0;
+            padding: 1rem 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #2fff7f33;
         }
-        .logo-img {
-            display: block;
-            margin: 0 auto 1.2rem auto;
-            max-width: 220px;
-            height: auto;
-            padding-top: 0.5rem;
+        .header-content {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
         }
         .header-info {
-            position: absolute;
-            top: 32px;
-            right: 40px;
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            z-index: 10;
+            gap: 2rem;
+            align-items: center;
         }
         .last-update, .total-servers {
             color: #00ff99;
             font-size: 0.95rem;
             font-weight: 400;
-            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .last-update::before {
+            content: "";
+        }
+        .total-servers::before {
+            content: "";
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            flex: 1;
         }
         .server-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
         }
         .server-group {
             background: #184d23;
-            border-radius: 10px;
-            margin-bottom: 0;  /* Remove margin since we're using grid gap */
-            box-shadow: none;
+            border-radius: 12px;
+            margin-bottom: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             border: none;
-            min-height: 70px;
+            min-height: 65px;
             display: block;
             position: relative;
+            transition: transform 0.2s ease;
+        }
+        .server-group:hover {
+            transform: translateY(-2px);
         }
         .server-group-unsuccessful {
             background: #7a1a1a !important;
+        }
+        .card-top-line {
+            height: 6px;
+            border-radius: 12px 12px 0 0;
+            margin-bottom: 0;
+            margin-left: 0;
+            margin-right: 0;
+            width: 100%;
+        }
+        .card-top-line-successful {
+            background: #2fff7f;
+        }
+        .card-top-line-unsuccessful {
+            background: #ff4d4d;
         }
         .accent-bar {
             position: absolute;
@@ -69,17 +101,27 @@
             margin-right: 0;
             height: 100%;
         }
-        .accent-bar-unsuccessful {
+        .accent-bar-right {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            background: #2fff7f;
+            border-radius: 0 10px 10px 0;
+            height: 100%;
+        }
+        .accent-bar-unsuccessful, .accent-bar-right-unsuccessful {
             background: #ff4d4d !important;
         }
         .server-content {
             flex: 1;
-            padding: 0.5rem 0 0.5rem 1.7rem;
+            padding: 0.5rem 1.5rem;
         }
         .server-name {
             font-weight: 500;
             color: #fff;
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             margin-bottom: 0.2rem;
             letter-spacing: 0.5px;
         }
@@ -92,19 +134,31 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.2rem 0;
+            padding: 0.15rem 0;
         }
         .status-successful {
             color: #2fff7f;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .status-successful::before {
+            content: "✓";
         }
         .status-unsuccessful {
             color: #ff4d4d;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .status-unsuccessful::before {
+            content: "✕";
         }
         .timestamp {
             color: #bdbdbd;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 400;
         }
         .refresh-btn {
@@ -121,11 +175,6 @@
         .refresh-btn:hover {
             background-color: #00ff99;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
         h2 {
             color: #2fff7f;
             font-size: 1.5rem;
@@ -138,17 +187,27 @@
             background: transparent !important;
         }
         .company-section {
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1.5px solid #fff;
+            border-radius: 6px;
+            padding: 1.2rem 1rem 1rem 1rem;
+            background: none;
         }
-        
         .company-name {
-            color: #2fff7f;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #2fff7f;
+            color: #ffffff;
+            font-size: 1.4rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.4rem;
+            display: block;
+            align-items: center;
+            gap: 0.5rem;
+            width: calc(33.33% - 0.8rem);
         }
-
+        .server-date {
+            color: #bdbdbd;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
         /* Add responsive design for smaller screens */
         @media (max-width: 1200px) {
             .server-grid {
@@ -161,31 +220,25 @@
                 grid-template-columns: 1fr;  /* Single column on mobile */
             }
         }
-
-        .server-date {
-            color: #bdbdbd;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
-        }
     </style>
 </head>
 <body>
-    <div class="header-info">
-        <div class="last-update">Last Update: {{ last_update }}</div>
-        <div class="total-servers">Total Servers: {{ total_servers }}</div>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-info">
+                <div class="last-update">Last Update: {{ last_update }}</div>
+                <div class="total-servers">Total Servers: {{ total_servers }}</div>
+            </div>
+        </div>
     </div>
     <div class="container">
-        <div class="header">
-            <img src="{{ url_for('static', filename='bekat_logo.png') }}" alt="Bekat IT Logo" class="logo-img">
-        </div>
-        
         {% for company in companies %}
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
             <div class="server-grid">
                 {% for statuses in server_statuses[company] %}
                 {% set latest = statuses[0] %}
-                <div class="server-group" 
+                <div class="server-group {% if latest.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}" 
                      style="cursor:pointer"
                      data-bs-toggle="modal"
                      data-bs-target="#emailModal"
@@ -194,6 +247,7 @@
                      data-timestamp="{{ latest.timestamp|default('') }}"
                      data-body="{{ latest.body|default('No body')|e }}">
                     <div class="accent-bar {% if latest.status == 'unsuccessful' %}accent-bar-unsuccessful{% endif %}"></div>
+                    <div class="accent-bar-right {% if latest.status == 'unsuccessful' %}accent-bar-right-unsuccessful{% endif %}"></div>
                     <div class="server-content">
                         <div class="server-name">{{ latest.server }}</div>
                         <ul class="status-list">

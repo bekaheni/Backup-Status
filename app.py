@@ -259,8 +259,10 @@ def index():
         for server, company in servers:
             statuses = BackupStatus.query.filter_by(server=server).order_by(BackupStatus.timestamp.desc()).limit(2).all()
             if statuses:
-                server_statuses.setdefault(company, []).append(statuses)
-        # Sort companies
+                # Use 'Unknown' for None company values
+                company_key = company if company else 'Unknown'
+                server_statuses.setdefault(company_key, []).append(statuses)
+        # Sort companies, handling None values
         companies = sorted(server_statuses.keys())
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
