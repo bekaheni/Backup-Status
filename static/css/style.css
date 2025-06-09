@@ -1,0 +1,37 @@
+/* Email modal styles */
+.email-body {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+    border: 1px solid #dee2e6;
+}
+
+.email-body pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #212529;
+}
+
+.modal-content {
+    background-color: #fff;
+    color: #212529;
+}
+
+.modal-header {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-body p {
+    margin-bottom: 0.5rem;
+}
+
+.modal-body strong {
+    color: #495057;
+} 

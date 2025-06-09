@@ -22,11 +22,30 @@
         }
         .header-content {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 1rem;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-btn {
+            background-color: #2fff7f;
+            color: #111;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #00ff99;
+            color: #111;
         }
         .header-info {
             display: flex;
@@ -208,6 +227,22 @@
             font-size: 0.85rem;
             margin-top: 0.3rem;
         }
+        .delete-btn {
+            background-color: #ff4d4d;
+            color: #fff;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: background 0.2s;
+            margin: 2rem auto;
+            display: block;
+        }
+        .delete-btn:hover {
+            background-color: #ff3333;
+        }
         /* Add responsive design for smaller screens */
         @media (max-width: 1200px) {
             .server-grid {
@@ -220,11 +255,80 @@
                 grid-template-columns: 1fr;  /* Single column on mobile */
             }
         }
+        
+        /* Modal styles */
+        .modal-content {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #333;
+        }
+        
+        .modal-body {
+            color: #ffffff;
+        }
+        
+        .email-body {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+
+        .email-body pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #ffffff;
+        }
+
+        .email-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .email-body td, .email-body th {
+            padding: 0.5rem;
+            border: 1px solid #444;
+        }
+
+        .email-body p {
+            margin: 0.5rem 0;
+        }
+
+        .email-body h1, .email-body h2, .email-body h3, .email-body h4 {
+            margin: 1rem 0 0.5rem 0;
+            color: #ffffff;
+        }
+
+        .email-body ul, .email-body ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .email-body li {
+            margin: 0.25rem 0;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-content">
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn">Server Status</a>
+                <a href="/proj2" class="nav-btn">NAS Status</a>
+                <button onclick="window.location.reload()" class="nav-btn refresh-btn">
+                    <span>↻</span> Refresh
+                </button>
+            </div>
             <div class="header-info">
                 <div class="last-update">Last Update: {{ last_update }}</div>
                 <div class="total-servers">Total Servers: {{ total_servers }}</div>
@@ -236,67 +340,59 @@
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
             <div class="server-grid">
-                {% for statuses in server_statuses[company] %}
-                {% set latest = statuses[0] %}
-                <div class="server-group {% if latest.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}" 
-                     style="cursor:pointer"
-                     data-bs-toggle="modal"
-                     data-bs-target="#emailModal"
-                     data-server="{{ latest.server }}"
-                     data-subject="{{ latest.subject|default('No subject') }}"
-                     data-timestamp="{{ latest.timestamp|default('') }}"
-                     data-body="{{ latest.body|default('No body')|e }}">
-                    <div class="accent-bar {% if latest.status == 'unsuccessful' %}accent-bar-unsuccessful{% endif %}"></div>
-                    <div class="accent-bar-right {% if latest.status == 'unsuccessful' %}accent-bar-right-unsuccessful{% endif %}"></div>
-                    <div class="server-content">
-                        <div class="server-name">{{ latest.server }}</div>
-                        <ul class="status-list">
-                            {% for status in statuses %}
-                            <li class="status-item">
-                                <span class="status-{{ status.status }}">{{ status.status|title }}</span>
-                                <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                {% for server_list in server_statuses[company] %}
+                    {% for status in server_list %}
+                    <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
+                         data-bs-toggle="modal" 
+                         data-bs-target="#emailModal"
+                         data-server="{{ status.server }}"
+                         data-subject="{{ status.subject }}"
+                         data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
+                         data-body="{{ status.html_body|default(status.body)|safe }}"
+                         style="cursor: pointer;">
+                        <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
+                        <div class="server-content">
+                            <div class="server-name">{{ status.server }}</div>
+                            <ul class="status-list">
+                                <li class="status-item">
+                                    <span class="status-{{ status.status }}">{{ status.status }}</span>
+                                    <span class="timestamp">{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
+                    {% endfor %}
                 {% endfor %}
             </div>
         </div>
         {% endfor %}
+        <div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
+            <button onclick="clearDatabase('server')" class="delete-btn">Clear Server Database</button>
+            <button onclick="deleteOldEmails('server')" class="delete-btn" style="background-color: #4a90e2;">Delete Old Server Emails</button>
+        </div>
     </div>
     
     <!-- Modal -->
     <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content bg-dark text-white">
-          <div class="modal-header">
-            <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <strong>Server:</strong> <span id="modalServer"></span><br>
-            <strong>Subject:</strong> <span id="modalSubject"></span><br>
-            <strong>Timestamp:</strong> <span id="modalTimestamp"></span>
-            <br><strong>Email Body:</strong>
-            <div id="modalBody" style="max-height: 300px; overflow-y: auto; background: #222; padding: 10px; border-radius: 6px; margin-top: 8px;"></div>
-          </div>
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Server:</strong> <span id="modalServer"></span></p>
+                    <p><strong>Subject:</strong> <span id="modalSubject"></span></p>
+                    <p><strong>Timestamp:</strong> <span id="modalTimestamp"></span></p>
+                    <div class="email-body">
+                        <pre id="modalBody"></pre>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var emailModal = document.getElementById('emailModal');
-        emailModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            document.getElementById('modalServer').textContent = button.getAttribute('data-server');
-            document.getElementById('modalSubject').textContent = button.getAttribute('data-subject');
-            document.getElementById('modalTimestamp').textContent = button.getAttribute('data-timestamp');
-            document.getElementById('modalBody').innerHTML = button.getAttribute('data-body');
-        });
-    });
-    </script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
