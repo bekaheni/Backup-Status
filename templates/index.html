@@ -348,15 +348,15 @@
                          data-server="{{ status.server }}"
                          data-subject="{{ status.subject }}"
                          data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                         data-body="{{ status.html_body|default(status.body)|safe }}"
+                         data-body="{{ status.html_body|default(status.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
                          style="cursor: pointer;">
                         <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
                         <div class="server-content">
                             <div class="server-name">{{ status.server }}</div>
                             <ul class="status-list">
                                 <li class="status-item">
-                                    <span class="status-{{ status.status }}">{{ status.status }}</span>
-                                    <span class="timestamp">{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
+                                    <span class="status-{{ status.status }}">{{ status.status|title }}</span>
+                                    <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
                                 </li>
                             </ul>
                         </div>
@@ -374,19 +374,18 @@
     
     <!-- Modal -->
     <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
                 <div class="modal-header">
                     <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Server:</strong> <span id="modalServer"></span></p>
-                    <p><strong>Subject:</strong> <span id="modalSubject"></span></p>
-                    <p><strong>Timestamp:</strong> <span id="modalTimestamp"></span></p>
-                    <div class="email-body">
-                        <pre id="modalBody"></pre>
-                    </div>
+                    <strong>Server:</strong> <span id="modalServer"></span><br>
+                    <strong>Subject:</strong> <span id="modalSubject"></span><br>
+                    <strong>Timestamp:</strong> <span id="modalTimestamp"></span>
+                    <br><strong>Email Body:</strong>
+                    <div id="modalBody" style="max-height: 300px; overflow-y: auto; background: #222; padding: 10px; border-radius: 6px; margin-top: 8px;"></div>
                 </div>
             </div>
         </div>
@@ -394,5 +393,19 @@
 
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var emailModal = document.getElementById('emailModal');
+        if (emailModal) {
+            emailModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                document.getElementById('modalServer').textContent = button.getAttribute('data-server');
+                document.getElementById('modalSubject').textContent = button.getAttribute('data-subject');
+                document.getElementById('modalTimestamp').textContent = button.getAttribute('data-timestamp');
+                document.getElementById('modalBody').innerHTML = button.getAttribute('data-body');
+            });
+        }
+    });
+    </script>
 </body>
 </html> 

@@ -257,7 +257,7 @@
                          data-server="{{ status.server }}"
                          data-subject="{{ status.subject }}"
                          data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                         data-body="{{ status.html_body|default(status.body)|replace('"', '&quot;')|replace("'", '&#39;')|replace('<', '&lt;')|replace('>', '&gt;')|replace('&', '&amp;') }}"
+                         data-body="{{ status.body|replace('"', '&quot;')|replace("'", '&#39;')|replace('<', '&lt;')|replace('>', '&gt;')|replace('&', '&amp;') }}"
                          style="cursor: pointer;">
                         <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
                         <div class="server-content">
