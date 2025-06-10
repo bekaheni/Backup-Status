@@ -321,8 +321,8 @@ def index():
                               last_update=last_update,
                               total_servers=total_servers)
 
-@app.route('/proj2')
-def proj2_view():
+@app.route('/nas')
+def nas_view():
     with app.app_context():
         # Get all servers for NAS backups
         servers = db.session.query(BackupStatus.server, BackupStatus.company).filter_by(email_type='nas').distinct().all()
@@ -340,7 +340,7 @@ def proj2_view():
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
         total_servers = sum(len(servers) for servers in server_statuses.values())
-        return render_template('proj2.html',
+        return render_template('nas.html',
                               server_statuses=server_statuses,
                               companies=companies,
                               last_update=last_update,
@@ -383,6 +383,9 @@ def delete_old_emails():
         imap_server = connect_to_imap(email_type)
         if not imap_server:
             return jsonify({'success': False, 'message': 'Failed to connect to email server'})
+        
+        # Select the inbox before searching
+        imap_server.select('inbox')
         
         # Search for emails older than cutoff date
         date_str = cutoff_date.strftime("%d-%b-%Y")
