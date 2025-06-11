@@ -1,79 +1,59 @@
 # Backup Status Dashboard
 
-A Python-based web dashboard that monitors a Gmail inbox for backup status messages and displays them in a modern, responsive card interface. Clicking on a device card reveals the full backup status email in a modal window.
+A Flask-based web application that monitors and displays the status of server and NAS backups by parsing email notifications.
 
 ## Features
 
-- Monitors a Gmail inbox for backup status messages using OAuth2 authentication
-- Displays backup status in a modern, responsive card interface
-- Click any device card to view the full backup status email in a modal
-- Auto-refreshes every 5 minutes
-- Stores backup history in an SQLite database using SQLAlchemy
-- Secure credential management using environment variables and OAuth tokens
-- Designed for production deployment with Gunicorn and Nginx
+- Real-time backup status monitoring
+- Email parsing for both server and NAS backup notifications
+- Web dashboard with status indicators
+- Automatic email checking
+- Company-based organization of backup statuses
+
+## Project Structure
+
+- `app.py` - Main application file
+- `utils.py` - Utility functions for email parsing
+- `templates/` - HTML templates
+- `static/` - CSS and JavaScript files
+- `tests/` - Test files
+- `migrations/` - Database migration files
 
 ## Setup
 
-1. Clone this repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-3. Create a `.env` file based on `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
+2. Configure email settings in `app.py`:
+```python
+EMAIL = "your-email@example.com"
+PASSWORD = "your-password"
+IMAP_SERVER = "imap.example.com"
+```
 
-4. Edit the `.env` file:
-   - Set a strong `SECRET_KEY` (see DEPLOYMENT.md for details)
-   - Other values are typically fine as provided
+3. Initialize the database:
+```bash
+flask db upgrade
+```
 
-5. Set up Gmail OAuth:
-   - Download your `credentials.json` from Google Cloud Console and place it in the project root
-   - Run the setup script to generate `gmail_token.json`:
-     ```bash
-     python gmail_oauth_setup.py
-     ```
-   - Follow the on-screen instructions to authorise access
+4. Run the application:
+```bash
+python app.py
+```
 
-## Running the Application (Development)
+## Testing
 
-1. Start the application:
-   ```bash
-   python app.py
-   ```
+Run tests using pytest:
+```bash
+python -m pytest tests/
+```
 
-2. Open your browser and navigate to:
-   ```
-   http://localhost:5000
-   ```
+## Deployment
 
-## Running in Production
+See `DEPLOYMENT.md` for detailed deployment instructions.
 
-- Use Gunicorn as the WSGI server and Nginx as a reverse proxy (see DEPLOYMENT.md for full instructions):
-  ```bash
-  gunicorn --workers 3 --bind 0.0.0.0:8000 app:app
-  ```
-- Configure Nginx to proxy requests to Gunicorn and serve static files
+## License
 
-## Email Configuration
-
-- The application looks for backup status emails in your Gmail inbox
-- Make sure your backup system sends emails with clear status information
-- The dashboard displays the most recent backup status for each device
-- Clicking a device card shows the full email content in a modal
-
-## Security Notes
-
-- Never commit your `.env`, `gmail_token.json`, or `credentials.json` to version control
-- Use strong, unique secrets for your `.env` file
-- Keep your dependencies updated
-
-## Troubleshooting
-
-If you encounter any issues:
-1. Check your `.env` and OAuth token setup
-2. Ensure your Gmail account and Google Cloud project are configured correctly
-3. Check the console output for any error messages
-4. See DEPLOYMENT.md for more advanced deployment and troubleshooting tips
+This project is licensed under the MIT License - see the LICENSE file for details.

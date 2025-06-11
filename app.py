@@ -10,16 +10,29 @@ import email
 from email.header import decode_header
 from bs4 import BeautifulSoup
 from flask_migrate import Migrate
-from proj2 import parse_backup_status as parse_nas_backup_status
 from utils import SERVER_COMPANIES, get_company_for_server
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configure SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///backup_status.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
+
+# Initialize Flask-SQLAlchemy
 db = SQLAlchemy(app)
+
+# Initialize the database
+with app.app_context():
+    db.create_all()
+    print("Database initialized")
+
 migrate = Migrate(app, db)
 
 # Database Model
@@ -159,6 +172,49 @@ def parse_backup_status(body):
         results.append(result)
     
     return results
+
+def parse_nas_backup_status(body, subject=None):
+    """Parse NAS backup status from email body and subject."""
+    print(f"\nParsing NAS email body for backup statuses...")
+    print(f"Body preview: {body[:200]}...")
+
+    # Status from subject
+    status = 'unsuccessful'
+    subj = subject or ''
+    if 'successful' in subj.lower():
+        status = 'successful'
+    elif 'failed' in subj.lower() or 'unsuccessful' in subj.lower():
+        status = 'unsuccessful'
+
+    # Device/Server from subject or body
+    server = 'Unknown'
+    server_match = re.search(r'on (\w+)', subj)
+    if server_match:
+        server = server_match.group(1)
+    else:
+        from_match = re.search(r'From (\w+)', body)
+        if from_match:
+            server = from_match.group(1)
+
+    # Timestamp from body
+    timestamp = None
+    time_match = re.search(r'Start Time:\s*(.+)', body)
+    if time_match:
+        time_str = time_match.group(1).strip()
+        try:
+            timestamp = datetime.strptime(time_str, "%a, %b %d %Y %H:%M:%S")
+        except Exception:
+            timestamp = time_str  # fallback: raw string
+    else:
+        timestamp = datetime.now()
+
+    result = [{
+        'server': server,
+        'status': status,
+        'timestamp': timestamp
+    }]
+    print(f"Parsed NAS status: {result[0]}")
+    return result
 
 def check_email(email_type='server'):
     try:
@@ -417,10 +473,23 @@ def update_existing_companies():
         print("Updated all records with new company information")
 
 def init_db():
+    """Initialize the database."""
     with app.app_context():
+        # Drop all tables and recreate them
+        db.drop_all()
         db.create_all()
-        update_existing_companies()
         print("Database initialized")
+
+# Initialize the database when the application starts
+init_db()
+
+# Configure session handling
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Clean up the database session at the end of each request."""
+    if exception:
+        db.session.rollback()
+    db.session.close()
 
 # Initialize scheduler with both email types
 scheduler = BackgroundScheduler()
@@ -434,6 +503,5 @@ scheduler.start()
 print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
 
 if __name__ == '__main__':
-    init_db()
     update_existing_companies()  # TEMP: update company names in DB after mapping change
     app.run(host='0.0.0.0', port=5000, debug=False) 
