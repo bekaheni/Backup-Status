@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
@@ -10,6 +10,8 @@ import email
 from email.header import decode_header
 from bs4 import BeautifulSoup
 from flask_migrate import Migrate
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from utils import SERVER_COMPANIES, get_company_for_server
 
 # Load environment variables
@@ -17,23 +19,39 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configure SQLAlchemy
+# Configure Flask
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///backup_status.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
 }
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')  # Change this in production
 
 # Initialize Flask-SQLAlchemy
 db = SQLAlchemy(app)
 
-# Initialize the database
-with app.app_context():
-    db.create_all()
-    print("Database initialized")
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-migrate = Migrate(app, db)
+# User Model
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    is_admin = db.Column(db.Boolean, default=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # Database Model
 class BackupStatus(db.Model):
@@ -46,6 +64,7 @@ class BackupStatus(db.Model):
     html_body = db.Column(db.Text)  # Add HTML body field
     company = db.Column(db.String(100))
     email_type = db.Column(db.String(50), nullable=True)  # Add email_type field
+    cleared_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 def connect_to_imap(email_type='server'):
     try:
@@ -352,7 +371,35 @@ def check_email(email_type='server'):
             except:
                 pass
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            flash('Logged in successfully.', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
+        else:
+            flash('Invalid username or password.', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     with app.app_context():
         # Get all servers for server backups
@@ -378,6 +425,7 @@ def index():
                               total_servers=total_servers)
 
 @app.route('/nas')
+@login_required
 def nas_view():
     with app.app_context():
         # Get all servers for NAS backups
@@ -403,12 +451,14 @@ def nas_view():
                               total_servers=total_servers)
 
 @app.route('/clear')
+@login_required
 def clear_backup_status():
     db.session.query(BackupStatus).delete()
     db.session.commit()
     return 'All backup status records deleted.'
 
 @app.route('/clear-database', methods=['POST'])
+@login_required
 def clear_database():
     try:
         with app.app_context():
@@ -429,6 +479,7 @@ def clear_database():
         })
 
 @app.route('/delete-old-emails', methods=['POST'])
+@login_required
 def delete_old_emails():
     try:
         email_type = request.json.get('email_type', 'server')
@@ -480,8 +531,36 @@ def init_db():
         db.create_all()
         print("Database initialized")
 
-# Initialize the database when the application starts
-init_db()
+def start_background_jobs():
+    # Initialize scheduler with both email types
+    scheduler = BackgroundScheduler()
+    # Add immediate jobs for both email types
+    scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
+    scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
+    # Add recurring jobs for both email types
+    scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=5)
+    scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=5)
+    scheduler.start()
+    print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
+
+# Initialize the database and create admin user
+with app.app_context():
+    db.create_all()
+    # Check if admin user exists
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(username='admin', is_admin=True)
+        admin.set_password('admin123')
+        db.session.add(admin)
+        db.session.commit()
+        print("Admin user created")
+    else:
+        print("Admin user already exists")
+
+if __name__ == '__main__':
+    start_background_jobs()
+    update_existing_companies()  # TEMP: update company names in DB after mapping change
+    app.run(host='0.0.0.0', port=5000, debug=False)
 
 # Configure session handling
 @app.teardown_appcontext
@@ -489,19 +568,4 @@ def shutdown_session(exception=None):
     """Clean up the database session at the end of each request."""
     if exception:
         db.session.rollback()
-    db.session.close()
-
-# Initialize scheduler with both email types
-scheduler = BackgroundScheduler()
-# Add immediate jobs for both email types
-scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
-scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
-# Add recurring jobs for both email types
-scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=5)
-scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=5)
-scheduler.start()
-print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
-
-if __name__ == '__main__':
-    update_existing_companies()  # TEMP: update company names in DB after mapping change
-    app.run(host='0.0.0.0', port=5000, debug=False) 
+    db.session.close() 

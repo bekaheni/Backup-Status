@@ -228,17 +228,76 @@
         .email-body li {
             margin: 0.25rem 0;
         }
+
+        .main-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .nav-left {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        .update-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.2rem;
+            color: #4aefc6;
+            font-size: 1.1rem;
+        }
+        .user-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Backup Status Dashboard</h1>
-            <nav>
-                <a href="/" class="nav-btn">Server Status</a>
-                <a href="/nas" class="nav-btn active">NAS Status</a>
+            <nav class="main-nav">
+                <div class="nav-left">
+                    <a href="/" class="nav-btn">Server Status</a>
+                    <a href="/nas" class="nav-btn active">NAS Status</a>
+                    <button onclick="window.location.reload()" class="nav-btn refresh-btn">
+                        <span>↻</span> Refresh
+                    </button>
+                </div>
+                <div class="nav-right">
+                    <div class="update-info">
+                        <span class="last-update">Last Update: {{ last_update }}</span>
+                        <span class="total-servers">Total NAS: {{ total_nas }}</span>
+                    </div>
+                    <div class="user-controls">
+                        {% if current_user.is_authenticated %}
+                            <span class="user-info">Welcome, {{ current_user.username }}</span>
+                            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">Logout</a>
+                        {% endif %}
+                    </div>
+                </div>
             </nav>
         </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% for company in companies %}
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
