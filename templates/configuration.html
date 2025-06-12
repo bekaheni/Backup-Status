@@ -1,0 +1,59 @@
+{% extends "template.html" %}
+{% block content %}
+<style>
+    .config-section {
+        border: 1px solid #2fff7f;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        background: #181a1b;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .config-title {
+        color: #2fff7f;
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .config-body {
+        color: #fff;
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+    .email-box {
+        width: 100%;
+        background: #222;
+        color: #2fff7f;
+        border: 1px solid #2fff7f;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+        margin-bottom: 1rem;
+        resize: none;
+    }
+</style>
+<div class="config-section">
+    <textarea class="email-box" readonly>Email used = {{ server_inbox }}</textarea>
+    <div class="config-title">Server Backup eMail Parsing</div>
+    <div class="config-body">
+        The system parses server backup emails by looking for lines in the following format:<br>
+        <code>ServerName (ServerID) Success/Failed Date Time</code><br>
+        <br>
+        <b>Example:</b> <code>BRBD (BRBHV02) Success 15 Mar 2024 14:30</code><br><br>
+        If this format is not found, it tries to extract the server name, status (Success/Failed), and timestamp using alternative patterns, such as bold text or searching for keywords. The extracted information is then used to record the backup status for each server.
+    </div>
+</div>
+<div class="config-section">
+    <textarea class="email-box" readonly>Email used = {{ nas_inbox }}</textarea>
+    <div class="config-title">NAS Backup eMail Parsing</div>
+    <div class="config-body">
+        For NAS backup emails, the system determines the backup status from the subject line (looking for words like 'successful', 'failed', or 'unsuccessful').<br><br>
+        It tries to identify the device name from the subject (after 'on') or from the body (after 'From').<br><br>
+        The timestamp is extracted from a line starting with <code>Start Time:</code> in the email body, or the current time is used if not found.<br><br>
+        All this information is used to record the NAS backup status.
+    </div>
+</div>
+{% endblock %} 

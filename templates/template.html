@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Status Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #111;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            flex: 1;
+        }
+        .main-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .nav-left {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-btn {
+            background-color: #2fff7f;
+            color: #111;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.2s;
+            min-width: 140px;
+            text-align: center;
+        }
+        .nav-btn:hover {
+            background-color: #00ff99;
+            color: #111;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        .user-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Backup Status Dashboard</h1>
+            <nav class="main-nav">
+                <div class="nav-left">
+                    <a href="/" class="nav-btn">Server Status</a>
+                    <a href="/nas" class="nav-btn">NAS Status</a>
+                    <a href="/configuration" class="nav-btn">Configuration</a>
+                    <button onclick="window.location.reload()" class="nav-btn refresh-btn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="nav-right">
+                    <div class="user-controls">
+                        {% if current_user.is_authenticated %}
+                            <span class="user-info">Welcome, {{ current_user.username }}</span>
+                            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">Logout</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+        </header>
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html> 

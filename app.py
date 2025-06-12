@@ -543,6 +543,23 @@ def start_background_jobs():
     scheduler.start()
     print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
 
+@app.route('/parsing-logic')
+def parsing_logic():
+    return render_template('parsing_logic.html')
+
+@app.route('/template')
+def template_page():
+    from flask_login import current_user
+    # Provide dummy values for last_update and total_servers for template testing
+    return render_template('template.html', last_update='2025-06-12 22:20', total_servers=16, current_user=current_user)
+
+@app.route('/configuration')
+def configuration_page():
+    from flask_login import current_user
+    server_inbox = os.getenv('EMAIL', 'not set')
+    nas_inbox = os.getenv('NAS_EMAIL', 'not set')
+    return render_template('configuration.html', current_user=current_user, server_inbox=server_inbox, nas_inbox=nas_inbox)
+
 # Initialize the database and create admin user
 with app.app_context():
     db.create_all()
