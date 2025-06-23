@@ -51,7 +51,7 @@ class User(UserMixin, db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # Database Model
 class BackupStatus(db.Model):
@@ -559,6 +559,34 @@ def configuration_page():
     server_inbox = os.getenv('EMAIL', 'not set')
     nas_inbox = os.getenv('NAS_EMAIL', 'not set')
     return render_template('configuration.html', current_user=current_user, server_inbox=server_inbox, nas_inbox=nas_inbox)
+
+@app.route('/test-route')
+def test_route():
+    return "Test route is working!"
+
+@app.route('/manual-refresh', methods=['GET', 'POST'])
+@login_required
+def manual_refresh():
+    """Manually trigger email checking for both server and NAS emails."""
+    print("=== MANUAL REFRESH ROUTE CALLED ===")
+    print(f"Request method: {request.method}")
+    print(f"Referrer: {request.referrer}")
+    try:
+        # Check both email types
+        print("Starting server email check...")
+        check_email('server')
+        print("Starting NAS email check...")
+        check_email('nas')
+        print("Email refresh completed successfully")
+        flash('Email refresh completed successfully.', 'success')
+    except Exception as e:
+        print(f"Error during email refresh: {str(e)}")
+        flash(f'Error during email refresh: {str(e)}', 'error')
+    
+    # Redirect back to the referring page
+    redirect_url = request.referrer or url_for('index')
+    print(f"Redirecting to: {redirect_url}")
+    return redirect(redirect_url)
 
 # Initialize the database and create admin user
 with app.app_context():
