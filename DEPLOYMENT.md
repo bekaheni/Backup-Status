@@ -313,14 +313,40 @@ d.  **Check the Service Status:**
 
 ### 8. Updating the Application
 
-When you need to update the application with new code, follow these steps exactly:
+#### Option A: Using the Automated Update Script (Recommended)
+
+The easiest way to update the application is using the provided `update.sh` script:
+
+```bash
+# 1. Navigate to the application directory
+cd /var/www/backup-status
+
+# 2. Make the script executable (first time only)
+chmod +x update.sh
+
+# 3. Run the update script
+./update.sh
+```
+
+The script will automatically:
+- Check git status for uncommitted changes
+- Change ownership to `adminlocal` for git operations
+- Pull the latest changes from git
+- Change ownership back to `www-data` for the service
+- Restart the service
+- Verify the service is running
+- Show recent logs and status
+
+#### Option B: Manual Update Process
+
+If you prefer to update manually, follow these steps exactly:
 
 ```bash
 # 1. Change to the application directory
 cd /var/www/backup-status
 
 # 2. Temporarily change ownership to adminlocal for git operations
-
+sudo chown -R adminlocal:adminlocal /var/www/backup-status
 
 # 3. Pull the latest changes
 git pull
@@ -333,7 +359,7 @@ sudo systemctl restart backup_status.service
 ```
 
 **Important Notes for Updates:**
-* Always follow these steps in order
+* The automated script is recommended as it includes error checking and logging
 * The ownership changes are necessary because:
   * `adminlocal` needs write permissions to perform git operations
   * `www-data` needs ownership to run the service

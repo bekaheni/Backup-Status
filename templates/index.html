@@ -76,9 +76,14 @@
         }
         .server-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr); /* Default: 2 columns */
             gap: 1.2rem;
             margin-bottom: 1.5rem;
+        }
+        
+        /* Single column layout when showing only one backup per server */
+        .server-grid.single-column {
+            grid-template-columns: 1fr; /* Single column */
         }
         .server-group {
             background: #184d23;
@@ -348,6 +353,137 @@
             align-items: center;
             gap: 1rem;
         }
+        
+        /* Toggle Switch Styles */
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: 0;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        
+        .toggle-label {
+            color: #2fff7f;
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 24px;
+            border: 2px solid #555;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #666;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #2fff7f;
+            border-color: #2fff7f;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+            background-color: #111;
+        }
+        
+        /* Responsive adjustments for toggle */
+        @media (max-width: 1200px) {
+            .toggle-container {
+                margin-left: 0.5rem;
+            }
+            .toggle-label {
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .nav-left {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .toggle-container {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+                margin-top: 0.5rem;
+                align-items: center;
+            }
+        }
+        /* Toggle Bar Styles */
+        .toggle-bar {
+            width: 100%;
+            background: #181818;
+            border-bottom: 1px solid #333;
+            padding: 0.3rem 0 0.2rem 0;
+            margin-bottom: 0.7rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .toggle-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.7rem;
+        }
+        .toggle-label {
+            color: #2fff7f;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Changed from 3 to 2 columns */
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        /* Version display */
+        .version-display {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            background: rgba(47, 255, 127, 0.1);
+            color: #2fff7f;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid rgba(47, 255, 127, 0.3);
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -376,6 +512,15 @@
                     </div>
                 </div>
             </nav>
+            <div class="toggle-bar">
+                <div class="toggle-container">
+                    <label class="toggle-label">Show Latest Only</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="statusToggle" {% if status_count == 1 %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -394,7 +539,7 @@
             {% for company in companies %}
             <div class="company-section">
                 <h2 class="company-name">{{ company }}</h2>
-                <div class="server-grid">
+                <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
                     {% for server_list in server_statuses[company] %}
                         {% for status in server_list %}
                         <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
@@ -447,6 +592,11 @@
         </div>
     </div>
 
+    <!-- Version Display -->
+    <div class="version-display">
+        v{{ version }}
+    </div>
+
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -459,6 +609,17 @@
                 document.getElementById('modalSubject').textContent = button.getAttribute('data-subject');
                 document.getElementById('modalTimestamp').textContent = button.getAttribute('data-timestamp');
                 document.getElementById('modalBody').innerHTML = button.getAttribute('data-body');
+            });
+        }
+        
+        // Handle toggle switch functionality
+        var statusToggle = document.getElementById('statusToggle');
+        if (statusToggle) {
+            statusToggle.addEventListener('change', function() {
+                var statusCount = this.checked ? 1 : 2;
+                var currentUrl = new URL(window.location);
+                currentUrl.searchParams.set('status_count', statusCount);
+                window.location.href = currentUrl.toString();
             });
         }
     });

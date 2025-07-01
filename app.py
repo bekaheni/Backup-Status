@@ -14,6 +14,9 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from utils import SERVER_COMPANIES, get_company_for_server
 
+# Application version
+VERSION = "1.2.0"
+
 # Load environment variables
 load_dotenv()
 
@@ -402,12 +405,15 @@ def logout():
 @login_required
 def index():
     with app.app_context():
+        # Get the number of statuses to show from query parameter, default to 2
+        status_count = request.args.get('status_count', 2, type=int)
+        
         # Get all servers for server backups
         servers = db.session.query(BackupStatus.server, BackupStatus.company).filter_by(email_type='server').distinct().all()
-        # For each server, get the last 2 statuses
+        # For each server, get the specified number of statuses
         server_statuses = {}
         for server, company in servers:
-            statuses = BackupStatus.query.filter_by(server=server, email_type='server').order_by(BackupStatus.timestamp.desc()).limit(2).all()
+            statuses = BackupStatus.query.filter_by(server=server, email_type='server').order_by(BackupStatus.timestamp.desc()).limit(status_count).all()
             if statuses:
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
@@ -418,22 +424,27 @@ def index():
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
         total_servers = sum(len(servers) for servers in server_statuses.values())
-        return render_template('index.html',
-                              server_statuses=server_statuses,
-                              companies=companies,
-                              last_update=last_update,
-                              total_servers=total_servers)
+        return render_template('index.html', 
+                             server_statuses=server_statuses, 
+                             companies=companies, 
+                             last_update=last_update, 
+                             total_servers=total_servers,
+                             status_count=status_count,
+                             version=VERSION)
 
 @app.route('/nas')
 @login_required
 def nas_view():
     with app.app_context():
+        # Get the number of statuses to show from query parameter, default to 2
+        status_count = request.args.get('status_count', 2, type=int)
+        
         # Get all servers for NAS backups
         servers = db.session.query(BackupStatus.server, BackupStatus.company).filter_by(email_type='nas').distinct().all()
-        # For each server, get the last 2 statuses
+        # For each server, get the specified number of statuses
         server_statuses = {}
         for server, company in servers:
-            statuses = BackupStatus.query.filter_by(server=server, email_type='nas').order_by(BackupStatus.timestamp.desc()).limit(2).all()
+            statuses = BackupStatus.query.filter_by(server=server, email_type='nas').order_by(BackupStatus.timestamp.desc()).limit(status_count).all()
             if statuses:
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
@@ -448,7 +459,9 @@ def nas_view():
                               server_statuses=server_statuses,
                               companies=companies,
                               last_update=last_update,
-                              total_servers=total_servers)
+                              total_servers=total_servers,
+                              status_count=status_count,
+                              version=VERSION)
 
 @app.route('/clear')
 @login_required
