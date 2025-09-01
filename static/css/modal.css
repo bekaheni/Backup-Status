@@ -1,0 +1,164 @@
+/* Modal Styles */
+.modal-dialog {
+    max-width: 60% !important;
+    width: 60% !important;
+    margin: 1.75rem auto !important;
+}
+
+.modal-content {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--accent-cyan) !important;
+    border-radius: 12px !important;
+    height: 70vh !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+    position: relative !important;
+}
+
+.modal-header {
+    background: var(--bg-primary) !important;
+    border-bottom: 2px solid var(--accent-cyan) !important;
+    padding: 1rem 1.5rem !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+.modal-title {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 1.2rem !important;
+}
+
+.modal-body {
+    padding: 1rem 1.5rem !important;
+    max-height: calc(70vh - 100px) !important;
+    overflow-y: auto !important;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Email Info Section */
+.email-info {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--accent-cyan) !important;
+    border-radius: 8px !important;
+    padding: 1.2rem !important;
+    margin-bottom: 1.2rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 0.8rem;
+    align-items: flex-start;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-label {
+    font-weight: 600 !important;
+    color: var(--accent-cyan) !important;
+    min-width: 100px !important;
+    margin-right: 1rem !important;
+}
+
+.info-value {
+    color: var(--text-primary) !important;
+    flex: 1 !important;
+    word-break: break-word !important;
+}
+
+/* Email Content Section */
+.email-content-section {
+    margin-top: 1rem;
+}
+
+.content-title {
+    color: var(--accent-cyan) !important;
+    font-weight: 600 !important;
+    margin-bottom: 1rem !important;
+    font-size: 1rem !important;
+}
+
+.email-body {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--accent-cyan) !important;
+    border-radius: 8px !important;
+    padding: 1.2rem !important;
+    max-height: calc(70vh - 300px) !important;
+    overflow-y: auto !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    font-size: 0.9rem !important;
+    line-height: 1.6 !important;
+    color: var(--text-secondary) !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Modal backdrop styling */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Close button styling */
+.btn-close {
+    filter: invert(1) !important;
+}
+
+.btn-close-white {
+    filter: invert(1) !important;
+}
+
+/* Override any HTML styling from email content */
+.email-body * {
+    color: var(--text-secondary) !important;
+    background: transparent !important;
+    border: none !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    font-size: 0.9rem !important;
+    line-height: 1.6 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.email-body pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Responsive modal adjustments */
+@media (max-width: 768px) {
+    .modal-dialog {
+        max-width: 95% !important;
+        width: 95% !important;
+        margin: 0.5rem auto !important;
+    }
+    
+    .modal-content {
+        height: 90vh;
+    }
+    
+    .modal-body {
+        max-height: calc(90vh - 100px);
+    }
+    
+    .email-body {
+        max-height: calc(90vh - 300px);
+    }
+    
+    .info-label {
+        min-width: 80px;
+        font-size: 0.9rem;
+    }
+    
+    .info-value {
+        font-size: 0.9rem;
+    }
+}
+

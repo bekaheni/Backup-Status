@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Backup Status Dashboard</title>
+    <title>Login - Backup Status</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -11,9 +11,10 @@
             max-width: 400px;
             margin: 100px auto;
             padding: 20px;
-            background: white;
+            background: #16213e;
+            border: 1px solid #00d4ff;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
         .login-form {
             display: flex;
@@ -27,16 +28,18 @@
         }
         .form-group label {
             font-weight: bold;
-            color: #333;
+            color: #ffffff;
         }
         .form-group input {
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid #00d4ff;
             border-radius: 4px;
             font-size: 16px;
+            background: #1a1a1a;
+            color: #ffffff;
         }
         .login-btn {
-            background: #007bff;
+            background: #00d4ff;
             color: white;
             padding: 10px;
             border: none;
@@ -45,7 +48,7 @@
             font-size: 16px;
         }
         .login-btn:hover {
-            background: #0056b3;
+            background: #00b8e6;
         }
         .flash-messages {
             margin-bottom: 20px;
@@ -56,20 +59,23 @@
             margin-bottom: 10px;
         }
         .flash-message.error {
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #ffcdd2;
+            background: #16213e;
+            color: #00d4ff;
+            border: 1px solid #00d4ff;
         }
         .flash-message.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #c8e6c9;
+            background: #16213e;
+            color: #4caf50;
+            border: 1px solid #4caf50;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h1 style="text-align: center; margin-bottom: 30px;">Backup Status Dashboard</h1>
+        <div style="text-align: center; margin-bottom: 30px;">
+            <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight Logo" style="height: 65px; width: auto; margin-bottom: 15px;">
+                                <h1 style="margin: 0;">Backup Status</h1>
+        </div>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

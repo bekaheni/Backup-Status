@@ -1,0 +1,31 @@
+<!-- Email Details Modal -->
+<div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="email-info">
+                    <div class="info-row">
+                        <span class="info-label">Server:</span>
+                        <span class="info-value" id="modalServer"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Subject:</span>
+                        <span class="info-value" id="modalSubject"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Timestamp:</span>
+                        <span class="info-value" id="modalTimestamp"></span>
+                    </div>
+                </div>
+                <div class="email-content-section">
+                    <h6 class="content-title">Email Content:</h6>
+                    <div id="modalBody" class="email-body"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

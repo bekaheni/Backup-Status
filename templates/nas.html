@@ -3,40 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backup Status Dashboard - NAS View</title>
+    <title>NAS Backup</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #1a1a1a;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            color: #fff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
         .header {
-            background: #1a1a1a;
+            background: var(--bg-primary);
             padding: 1rem 0;
             margin-bottom: 1.5rem;
-            border-bottom: 1px solid #4a90e2;
+            border-bottom: 1px solid var(--accent-cyan);
         }
         .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 1rem;
+        }
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0;
         }
         .nav-buttons {
             display: flex;
             gap: 1rem;
         }
         .nav-btn {
-            background-color: #4a90e2;
-            color: #fff;
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
             border: none;
             padding: 0.5rem 1.2rem;
             border-radius: 6px;
@@ -46,8 +51,8 @@
             transition: background 0.2s;
         }
         .nav-btn:hover {
-            background-color: #357abd;
-            color: #fff;
+            background: #00B8E6;
+            color: var(--bg-primary);
         }
         .header-info {
             display: flex;
@@ -55,7 +60,7 @@
             align-items: center;
         }
         .last-update, .total-servers {
-            color: #4a90e2;
+            color: var(--accent-cyan);
             font-size: 0.95rem;
             font-weight: 400;
         }
@@ -77,82 +82,95 @@
             grid-template-columns: 1fr; /* Single column */
         }
         .server-group {
-            background: #2d2d2d;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            margin-bottom: 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border: none;
-            min-height: 65px;
-            display: block;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
             position: relative;
-            transition: transform 0.2s ease;
+            overflow: hidden;
         }
         .server-group:hover {
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
         .server-group-unsuccessful {
-            background: #3d2d2d !important;
+            background: #2A1A1A;
+            border-color: var(--error-red);
         }
         .card-top-line {
-            height: 6px;
+            height: 4px;
+            background: var(--success-green);
+            margin: -1rem -1rem 1rem -1rem;
             border-radius: 12px 12px 0 0;
-            margin-bottom: 0;
-            margin-left: 0;
-            margin-right: 0;
-            width: 100%;
         }
         .card-top-line-successful {
-            background: #4a90e2;
+            background: var(--success-green);
         }
         .card-top-line-unsuccessful {
-            background: #e24a4a;
+            background: var(--error-red);
         }
         .server-content {
-            flex: 1;
-            padding: 0.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
         .server-name {
-            font-weight: 500;
-            color: #fff;
-            font-size: 1.05rem;
-            margin-bottom: 0.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.1rem;
         }
-        .status-list {
-            list-style: none;
-            padding-left: 0;
-            margin-bottom: 0;
-        }
-        .status-item {
+        .status-section {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0.15rem 0;
+        }
+        
+        .timestamp-section {
+            display: flex;
+            align-items: center;
+            margin-top: auto;
         }
         .status-successful {
-            color: #4a90e2;
+            color: var(--success-green);
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .status-successful::before {
+            content: "✓";
+            font-weight: bold;
         }
         .status-unsuccessful {
-            color: #e24a4a;
+            color: var(--error-red);
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .status-unsuccessful::before {
+            content: "✕";
+            font-weight: bold;
         }
         .timestamp {
-            color: #bdbdbd;
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 400;
         }
         .company-section {
             margin-bottom: 1.5rem;
-            border: 1px solid #3d3d3d;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 1.2rem 1rem 1rem 1rem;
             background: none;
         }
         .company-name {
-            color: #ffffff;
+            color: var(--text-primary);
             font-size: 1.4rem;
             margin-bottom: 0.8rem;
             padding-bottom: 0.4rem;
-            border-bottom: 1px solid #3d3d3d;
+            border-bottom: 1px solid var(--border-color);
         }
         @media (max-width: 1200px) {
             .server-grid {
@@ -164,81 +182,14 @@
                 grid-template-columns: 1fr;
             }
         }
-        /* Force email HTML in modal to be readable in dark mode */
-        #modalBody, #modalBody * {
-            color: #fff !important;
-            background: transparent !important;
-        }
+
         
-        /* Modal styles */
-        .modal-content {
-            background-color: #1a1a1a;
-            color: #ffffff;
-        }
-        
-        .modal-header {
-            border-bottom: 1px solid #333;
-        }
-        
-        .modal-body {
-            color: #ffffff;
-        }
-        
-        .email-body {
-            max-height: 400px;
-            overflow-y: auto;
-            background-color: #2a2a2a;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-top: 1rem;
-            border: 1px solid #333;
-        }
-        
-        .email-body pre {
-            color: #ffffff;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            margin: 0;
-            font-family: monospace;
-            line-height: 1.4;
-            font-size: 0.9rem;
-        }
 
-        /* Styles for HTML email content */
-        .email-body table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1rem 0;
-        }
-
-        .email-body td, .email-body th {
-            padding: 0.5rem;
-            border: 1px solid #444;
-        }
-
-        .email-body p {
-            margin: 0.5rem 0;
-        }
-
-        .email-body h1, .email-body h2, .email-body h3, .email-body h4 {
-            margin: 1rem 0 0.5rem 0;
-            color: #ffffff;
-        }
-
-        .email-body ul, .email-body ol {
-            margin: 0.5rem 0;
-            padding-left: 1.5rem;
-        }
-
-        .email-body li {
-            margin: 0.25rem 0;
-        }
 
         .main-nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
         }
         .nav-left {
             display: flex;
@@ -254,8 +205,6 @@
             flex-direction: column;
             align-items: flex-end;
             gap: 0.2rem;
-            color: #4aefc6;
-            font-size: 1.1rem;
         }
         .user-controls {
             display: flex;
@@ -266,12 +215,12 @@
         /* Toggle Bar Styles */
         .toggle-bar {
             width: 100%;
-            background: #181818;
-            border-bottom: 1px solid #333;
-            padding: 0.1rem 0 0.1rem 0;
-            margin-bottom: 0.3rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.5rem 0;
+            margin-bottom: 1rem;
             display: flex;
-            justify-content: flex-start;
+            justify-content: center;
             align-items: center;
         }
         
@@ -283,7 +232,7 @@
         }
         
         .toggle-label {
-            color: #4a90e2;
+            color: var(--accent-cyan);
             font-size: 1rem;
             font-weight: 500;
         }
@@ -308,10 +257,10 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #333;
+            background-color: var(--border-color);
             transition: .4s;
             border-radius: 24px;
-            border: 2px solid #555;
+            border: 2px solid var(--text-muted);
         }
         
         .toggle-slider:before {
@@ -321,42 +270,26 @@
             width: 16px;
             left: 2px;
             bottom: 2px;
-            background-color: #666;
+            background-color: var(--text-muted);
             transition: .4s;
             border-radius: 50%;
         }
         
         input:checked + .toggle-slider {
-            background-color: #4a90e2;
-            border-color: #4a90e2;
+            background-color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
         }
         
         input:checked + .toggle-slider:before {
             transform: translateX(26px);
-            background-color: #111;
+            background-color: var(--bg-primary);
         }
         
-        /* Responsive adjustments for toggle */
-        @media (max-width: 1200px) {
-            .toggle-container {
-                margin-left: 0.5rem;
-            }
-            .toggle-label {
-                font-size: 0.8rem;
-            }
-        }
-        
+        /* Responsive adjustments */
         @media (max-width: 768px) {
             .nav-left {
                 flex-wrap: wrap;
                 gap: 0.5rem;
-            }
-            .toggle-container {
-                margin-left: 0;
-                width: 100%;
-                justify-content: center;
-                margin-top: 0.5rem;
-                align-items: center;
             }
         }
         .status-grid {
@@ -371,29 +304,33 @@
             position: fixed;
             bottom: 10px;
             right: 15px;
-            background: rgba(74, 144, 226, 0.1);
-            color: #4a90e2;
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
             padding: 5px 10px;
             border-radius: 4px;
             font-size: 0.8rem;
             font-weight: 500;
-            border: 1px solid rgba(74, 144, 226, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
             z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Backup Status Dashboard</h1>
+    <!-- Header Section -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title-section">
+                <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight Logo" class="header-logo">
+                <h1 class="app-title">NAS Backup</h1>
+            </div>
             <nav class="main-nav">
                 <div class="nav-left">
                     <a href="/" class="nav-btn">Server Status</a>
                     <a href="/nas" class="nav-btn active">NAS Status</a>
                     <a href="/configuration" class="nav-btn">Configuration</a>
-                    <a href="/manual-refresh" class="nav-btn refresh-btn" style="text-decoration: none; display: inline-block;">
-                        <span>↻</span> Refresh
-                    </a>
+                                    <a href="/manual-refresh" class="nav-btn refresh-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </a>
                 </div>
                 <div class="nav-right">
                     <div class="update-info">
@@ -408,16 +345,28 @@
                     </div>
                 </div>
             </nav>
-            <div class="toggle-bar">
-                <div class="toggle-container">
-                    <label class="toggle-label">Show Latest Only</label>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="statusToggle" {% if status_count == 1 %}checked{% endif %}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
+        </div>
+    </header>
+
+    <!-- Toggle Bar -->
+    <div class="toggle-bar">
+        <div class="left-section">
+            <div class="toggle-container">
+                <label class="toggle-label">Show Latest Only</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="statusToggle" {% if status_count == 1 %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
-        </header>
+        </div>
+        <div class="right-section">
+            <button onclick="clearDatabase('nas')" class="delete-btn">Clear NAS Database</button>
+            <button onclick="deleteOldEmails('nas')" class="delete-btn blue">Delete Old NAS Emails</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -443,17 +392,17 @@
                          data-server="{{ status.server }}"
                          data-subject="{{ status.subject }}"
                          data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                         data-body="{{ status.body|replace('"', '&quot;')|replace("'", '&#39;')|replace('<', '&lt;')|replace('>', '&gt;')|replace('&', '&amp;') }}"
+                         data-body="{{ status.html_body|default(status.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
                          style="cursor: pointer;">
                         <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
                         <div class="server-content">
                             <div class="server-name">{{ status.server }}</div>
-                            <ul class="status-list">
-                                <li class="status-item">
-                                    <span class="status-{{ status.status }}">{{ status.status }}</span>
-                                    <span class="timestamp">{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}</span>
-                                </li>
-                            </ul>
+                            <div class="status-section">
+                                <span class="status-{{ status.status }}">{{ status.status }}</span>
+                            </div>
+                            <div class="timestamp-section">
+                                <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -461,33 +410,14 @@
             </div>
         </div>
         {% endfor %}
-        <div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
-            <button onclick="clearDatabase('nas')" class="delete-btn">Clear NAS Database</button>
-            <button onclick="deleteOldEmails('nas')" class="delete-btn" style="background-color: #4a90e2;">Delete Old NAS Emails</button>
-        </div>
+
     </div>
 
-    <!-- Modal -->
-    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="emailModalLabel">Email Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Server:</strong> <span id="modalServer"></span></p>
-                    <p><strong>Subject:</strong> <span id="modalSubject"></span></p>
-                    <p><strong>Timestamp:</strong> <span id="modalTimestamp"></span></p>
-                    <div class="email-body">
-                        <pre id="modalBody"></pre>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Include Modal Template -->
+    {% include 'modal.html' %}
 
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
