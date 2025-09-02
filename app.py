@@ -31,6 +31,10 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')  # Change this in production
 
+# Configure session handling - extend login timeout to 24 hours
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(hours=24)
+
 # Custom Jinja2 filter for regex
 @app.template_filter('regex_findall')
 def regex_findall_filter(text, pattern):
@@ -393,7 +397,7 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            login_user(user)
+            login_user(user, remember=True)  # Set remember=True for extended session
             flash('Logged in successfully.', 'success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
@@ -461,13 +465,13 @@ def nas_view():
         companies = sorted(server_statuses.keys())
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
-        # Count total NAS devices
-        total_nas = sum(len(servers) for servers in server_statuses.values())
+        # Count total servers
+        total_servers = sum(len(servers) for servers in server_statuses.values())
         return render_template('nas.html',
                               server_statuses=server_statuses,
                               companies=companies,
                               last_update=last_update,
-                              total_nas=total_nas,
+                              total_servers=total_servers,
                               status_count=status_count,
                               version=VERSION)
 
@@ -558,11 +562,11 @@ def start_background_jobs():
     # Add immediate jobs for both email types
     scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
     scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
-    # Add daily jobs for both email types at 7:30am
-    scheduler.add_job(func=lambda: check_email('server'), trigger="cron", hour=7, minute=30)
-    scheduler.add_job(func=lambda: check_email('nas'), trigger="cron", hour=7, minute=30)
+    # Add recurring jobs for both email types
+    scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=5)
+    scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=5)
     scheduler.start()
-    print("Scheduler started - checking both email accounts immediately and then daily at 7:30am")
+    print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
 
 @app.route('/parsing-logic')
 def parsing_logic():
