@@ -37,8 +37,8 @@
             gap: 1rem;
         }
         .nav-btn {
-            background-color: #2fff7f;
-            color: #111;
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
             border: none;
             padding: 0.5rem 1.2rem;
             border-radius: 6px;
@@ -50,8 +50,8 @@
             text-align: center;
         }
         .nav-btn:hover {
-            background-color: #00ff99;
-            color: #111;
+            background: #00B8E6;
+            color: var(--bg-primary);
         }
         .nav-right {
             display: flex;
@@ -63,19 +63,66 @@
             align-items: center;
             gap: 1rem;
         }
+        
+        /* Header Section */
+        .header {
+            background: var(--bg-primary);
+            padding: 1rem 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--accent-cyan);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .header-logo {
+            height: 65px;
+            width: auto;
+            object-fit: contain;
+        }
+        
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0;
+        }
+        
+        .nav-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .user-info {
+            color: var(--text-primary);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Backup Status Dashboard</h1>
+    <!-- Header Section -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title-section">
+                <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight Logo" class="header-logo">
+                <h1 class="app-title">Configuration</h1>
+            </div>
             <nav class="main-nav">
                 <div class="nav-left">
                     <a href="/" class="nav-btn">Server Status</a>
                     <a href="/nas" class="nav-btn">NAS Status</a>
-                    <a href="/configuration" class="nav-btn">Configuration</a>
-                    <a href="/manual-refresh" class="nav-btn refresh-btn" style="text-decoration: none; display: inline-block;">
-                        <i class="fas fa-sync-alt"></i> Refresh
+                    <a href="/configuration" class="nav-btn active">Configuration</a>
+                    <a href="/manual-refresh" class="nav-btn refresh-btn">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
                     </a>
                 </div>
                 <div class="nav-right">
@@ -87,7 +134,10 @@
                     </div>
                 </div>
             </nav>
-        </header>
+        </div>
+    </header>
+
+    <div class="container">
         {% block content %}{% endblock %}
     </div>
 </body>

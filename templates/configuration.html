@@ -2,37 +2,55 @@
 {% block content %}
 <style>
     .config-section {
-        border: 1px solid #2fff7f;
-        border-radius: 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
         margin-bottom: 2rem;
-        padding: 1.5rem 1.5rem 1rem 1.5rem;
-        background: #181a1b;
+        padding: 1.5rem;
         max-width: 900px;
         margin-left: auto;
         margin-right: auto;
     }
     .config-title {
-        color: #2fff7f;
+        color: var(--accent-cyan);
         font-size: 1.25rem;
         font-weight: 600;
         margin-bottom: 1rem;
     }
     .config-body {
-        color: #fff;
+        color: var(--text-primary);
         font-size: 1.05rem;
         line-height: 1.6;
     }
     .email-box {
         width: 100%;
-        background: #222;
-        color: #2fff7f;
-        border: 1px solid #2fff7f;
-        border-radius: 5px;
+        background: var(--bg-card);
+        color: var(--accent-cyan);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
         font-family: monospace;
         font-size: 1rem;
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1rem;
         margin-bottom: 1rem;
         resize: none;
+        transition: border-color 0.2s ease;
+    }
+    .email-box:focus {
+        outline: none;
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+    }
+    .config-body code {
+        background: var(--bg-card);
+        color: var(--accent-cyan);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        border: 1px solid var(--border-color);
+    }
+    .config-body b {
+        color: var(--accent-cyan);
+        font-weight: 600;
     }
 </style>
 <div class="config-section">

@@ -113,7 +113,7 @@ def connect_to_imap(email_type='server'):
         print(f"Inbox: {inbox_name}")
         return None
 
-def parse_backup_status(body):
+def parse_backup_status(body, email_timestamp=None):
     print(f"\nParsing email body for backup statuses...")
     print(f"Full body content:")
     print("-" * 80)
@@ -143,27 +143,18 @@ def parse_backup_status(body):
         for span in bold_spans:
             print(f"Bold span content: {span.text}")
         
-        # Try to find the server name and status directly
-        server_name = None
-        server_id = None
-        status = None
-        timestamp = None
+        # Try to find multiple server entries in the email
+        # Look for all server name and ID patterns
+        server_matches = re.findall(r'([A-Za-z0-9]+)\s*\(([A-Za-z0-9]+)\)', body)
+        print(f"Found {len(server_matches)} server patterns: {server_matches}")
         
-        # Look for server name and ID
-        server_match = re.search(r'([A-Za-z0-9]+)\s*\(([A-Za-z0-9]+)\)', body)
-        if server_match:
-            server_name = server_match.group(1).strip()
-            server_id = server_match.group(2).strip()
-            print(f"Found server: {server_name} ({server_id})")
-        
-        # Look for status
-        status_match = re.search(r'(Success|Failed)', body)
-        if status_match:
-            status = status_match.group(1).strip()
-            print(f"Found status: {status}")
+        # Look for all status patterns
+        status_matches = re.findall(r'(Success|Failed|Overdue)', body)
+        print(f"Found {len(status_matches)} status patterns: {status_matches}")
         
         # Look for timestamp
         time_match = re.search(r'(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})', body)
+        timestamp = None
         if time_match:
             dt_str = time_match.group(1).strip()
             try:
@@ -173,14 +164,29 @@ def parse_backup_status(body):
                 print(f"Error parsing date '{dt_str}': {str(e)}")
                 timestamp = datetime.now()
         
-        if server_name and server_id and status and timestamp:
-            result = {
-                'server': f"{server_name} ({server_id})",
-                'status': 'successful' if status.lower() == 'success' else 'unsuccessful',
-                'timestamp': timestamp
-            }
-            print(f"Created result from individual matches: {result}")
-            results.append(result)
+        # If no timestamp found, use email timestamp or current time as fallback
+        if not timestamp:
+            if email_timestamp:
+                timestamp = email_timestamp
+                print(f"No timestamp found in body, using email timestamp: {timestamp}")
+            else:
+                timestamp = datetime.now()
+                print(f"No timestamp found, using current time: {timestamp}")
+        
+        # Create results for each server-status combination
+        # For now, assume they're in order (server1->status1, server2->status2, etc.)
+        for i, (server_name, server_id) in enumerate(server_matches):
+            if i < len(status_matches):
+                status = status_matches[i]
+                result = {
+                    'server': f"{server_name} ({server_id})",
+                    'status': 'successful' if status.lower() == 'success' else 'unsuccessful',
+                    'timestamp': timestamp
+                }
+                print(f"Created result from individual matches: {result}")
+                results.append(result)
+            else:
+                print(f"Warning: Server {server_name} ({server_id}) has no corresponding status")
     
     for match in matches:
         server_name = match.group(1).strip()
@@ -343,7 +349,7 @@ def check_email(email_type='server'):
                 if email_type == 'nas':
                     statuses = parse_nas_backup_status(body, subject)
                 else:
-                    statuses = parse_backup_status(body)
+                    statuses = parse_backup_status(body, email_timestamp)
                 print(f"Found {len(statuses)} backup statuses in email")
                 
                 for s in statuses:
