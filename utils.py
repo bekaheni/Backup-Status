@@ -13,12 +13,12 @@ SERVER_COMPANIES = {
 # Expected servers for each company (for sanity checking)
 EXPECTED_SERVERS = {
     'BRB Ltd': ['BRBD', 'BRBFAP', 'BRBExchange', 'Remote Desktop'],
-    'Lochlie Ltd': ['LochlieApp02', 'LochlieDC', 'LochlieRD'],
+    'Lochlie Ltd': ['LochlieApp01', 'LochlieApp02', 'LochlieDC', 'LochlieRD', 'BekatApp02'],
     'eHeating Ltd': ['eHeating02', 'eHeating03', 'eHeating04', 'eHeatingACT'],
-    'Caseman Ltd': ['CaseNotes', 'CaseNotesNTS', 'CasemanAPP', 'WIN10', 'CasemanDC'],
-    'JS Wilson Ltd': ['JSW', 'Server', 'Desktop', 'Remote Desktop', 'Trimble Server'],
+    'Caseman Ltd': ['CaseNotes', 'CaseNotesNTS', 'CasemanAPP', 'CasemanA', 'WIN10', 'CasemanDC'],
+    'JS Wilson Ltd': ['Remote Desktop', 'Trimble Server'],
     'NHG Ltd': ['NHG'],
-    'Bekat IT': ['BekatNAS', 'BekatApp01'],
+    'Bekat IT': ['BekatApp01'],
     'JSW Ltd': ['JSW']
 }
 

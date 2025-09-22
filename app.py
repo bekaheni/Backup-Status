@@ -14,6 +14,43 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from utils import SERVER_COMPANIES, get_company_for_server, get_expected_servers
 
+def clean_server_name(server_name):
+    """Clean up messy server names from email parsing"""
+    if not server_name:
+        return ""
+    
+    # Remove server ID part if it exists
+    clean_name = server_name.split(' (')[0]
+    
+    # Remove common prefixes
+    prefixes_to_remove = [
+        'Email Notification',
+        'Backup Offsite Replication',
+        'Backup',
+        'Offsite', 
+        'Replication'
+    ]
+    
+    for prefix in prefixes_to_remove:
+        if prefix in clean_name:
+            clean_name = clean_name.split(prefix)[-1].strip()
+    
+    # Remove excessive whitespace and newlines
+    clean_name = clean_name.replace('\n', ' ').replace('\r', ' ')
+    clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+    
+    # If we still have a messy name, try to extract the last meaningful part
+    if len(clean_name) > 20 or any(word in clean_name for word in ['Backup', 'Offsite', 'Replication', 'Email', 'Notification']):
+        parts = clean_name.split()
+        for part in reversed(parts):
+            if (len(part) > 2 and 
+                part not in ['Backup', 'Offsite', 'Replication', 'Email', 'Notification'] and
+                not part.startswith('(') and not part.endswith(')')):
+                clean_name = part
+                break
+    
+    return clean_name
+
 # Application version
 VERSION = "1.2.0"
 
@@ -125,10 +162,17 @@ def parse_backup_status(body, email_timestamp=None):
     # (ServerID)
     # Success/Failed
     # Date Time
-    # First, clean up the body to remove common prefix words
-    cleaned_body = re.sub(r'(?i)(email\s+notification\s*)', '', body)
-    cleaned_body = re.sub(r'(?i)(backup\s+offsite\s+replication\s*)', '', cleaned_body)
+    # Much more aggressive cleaning to handle the messy email format
+    # Remove the entire header section that contains "Email Notification", "Backup", "Offsite", "Replication"
+    cleaned_body = re.sub(r'(?i).*?email\s+notification.*?(?=\n[A-Za-z]|\n\s*[A-Za-z]|$)', '', body, flags=re.DOTALL)
+    cleaned_body = re.sub(r'(?i).*?backup\s+offsite\s+replication.*?(?=\n[A-Za-z]|\n\s*[A-Za-z]|$)', '', cleaned_body, flags=re.DOTALL)
     
+    # Remove excessive newlines and normalize whitespace
+    cleaned_body = re.sub(r'\n+', '\n', cleaned_body)
+    cleaned_body = re.sub(r'\s+', ' ', cleaned_body)
+    cleaned_body = cleaned_body.strip()
+    
+    # More precise pattern that looks for server names followed by (ID) pattern
     pattern = re.compile(
         r'([A-Za-z0-9][A-Za-z0-9\s]*?)\s*\(([A-Za-z0-9]+)\)\s*([A-Za-z]+)\s*(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
         re.DOTALL
@@ -453,6 +497,7 @@ def index():
                              total_servers=total_servers,
                              status_count=status_count,
                              get_expected_servers=get_expected_servers,
+                             clean_server_name=clean_server_name,
                              version=VERSION)
 
 @app.route('/nas')

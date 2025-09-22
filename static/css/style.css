@@ -359,6 +359,49 @@ body {
     font-size: 0.85rem;
 }
 
+.server-found {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.server-missing {
+    color: #ff4444;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: #ff4444;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+}
+
+.expected-server-buttons {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+    vertical-align: middle;
+}
+
+.expected-server-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #2d4a6b, #3a5a7a);
+    color: #ffffff;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid #4a6b8a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: default;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.expected-server-btn:hover {
+    background: linear-gradient(135deg, #3a5a7a, #4a6b8a);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
 /* Server Grid */
 .server-grid {
     display: grid;
