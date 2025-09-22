@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from utils import SERVER_COMPANIES, get_company_for_server
+from utils import SERVER_COMPANIES, get_company_for_server, get_expected_servers
 
 # Application version
 VERSION = "1.2.0"
@@ -452,6 +452,7 @@ def index():
                              last_update=last_update, 
                              total_servers=total_servers,
                              status_count=status_count,
+                             get_expected_servers=get_expected_servers,
                              version=VERSION)
 
 @app.route('/nas')

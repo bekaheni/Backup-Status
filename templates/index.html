@@ -79,6 +79,12 @@
         {% for company in companies %}
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
+            {% set expected_servers = get_expected_servers(company) %}
+            {% if expected_servers %}
+            <div class="expected-servers">
+                <strong>Expected Servers:</strong> {{ expected_servers|join(', ') }}
+            </div>
+            {% endif %}
             <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
                 {% for server_list in server_statuses[company] %}
                     {% for status in server_list %}
