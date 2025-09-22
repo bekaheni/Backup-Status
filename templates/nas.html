@@ -384,9 +384,10 @@
         {% for company in companies %}
         <div class="company-section">
             <h2 class="company-name">{{ company }}</h2>
-                            <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
-                {% for server_list in server_statuses[company] %}
-                    {% for status in server_list %}
+            <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
+                {% if server_statuses.get(company) %}
+                    {% for server_list in server_statuses[company] %}
+                        {% for status in server_list %}
                     <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
                          data-bs-toggle="modal" 
                          data-bs-target="#emailModal"
@@ -406,8 +407,13 @@
                             </div>
                         </div>
                     </div>
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
+                {% else %}
+                    <div class="no-servers-message">
+                        <p>No server data available for this company yet.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

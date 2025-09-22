@@ -85,14 +85,17 @@
                 <strong>Expected Servers:</strong> 
                 <div class="expected-server-buttons">
                     {% for server in expected_servers %}
-                        <span class="expected-server-btn">{{ server }}</span>
+                        {% set server_found = server|is_server_found(company, server_statuses) %}
+                        <!-- Debug: Expected: {{ server }} | Company: {{ company }} | Found: {{ server_found }} -->
+                        <span class="expected-server-btn {% if server_found %}server-found{% else %}server-missing{% endif %}">{{ server }}</span>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
             <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
-                {% for server_list in server_statuses[company] %}
-                    {% for status in server_list %}
+                {% if server_statuses.get(company) %}
+                    {% for server_list in server_statuses[company] %}
+                        {% for status in server_list %}
                     <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
                          data-bs-toggle="modal" 
                          data-bs-target="#emailModal"
@@ -112,8 +115,13 @@
                             </div>
                         </div>
                     </div>
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
+                {% else %}
+                    <div class="no-servers-message">
+                        <p>No server data available for this company yet.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

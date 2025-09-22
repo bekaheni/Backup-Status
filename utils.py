@@ -15,7 +15,7 @@ EXPECTED_SERVERS = {
     'BRB Ltd': ['BRBD', 'BRBFAP', 'BRBExchange', 'Remote Desktop'],
     'Lochlie Ltd': ['LochlieApp01', 'LochlieApp02', 'LochlieDC', 'LochlieRD', 'BekatApp02'],
     'eHeating Ltd': ['eHeating02', 'eHeating03', 'eHeating04', 'eHeatingACT'],
-    'Caseman Ltd': ['CaseNotes', 'CaseNotesNTS', 'CasemanAPP', 'CasemanA', 'WIN10', 'CasemanDC'],
+    'Caseman Ltd': ['CaseNotesCMS', 'CaseNotesNTS', 'CasemanAPP', 'CasemanA', 'WIN10', 'CasemanDC'],
     'JS Wilson Ltd': ['Remote Desktop', 'Trimble Server'],
     'NHG Ltd': ['NHG'],
     'Bekat IT': ['BekatApp01'],

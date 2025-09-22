@@ -80,6 +80,20 @@ def regex_findall_filter(text, pattern):
         return matches
     return []
 
+# Custom Jinja2 filter to check if a server is found in database
+@app.template_filter('is_server_found')
+def is_server_found_filter(expected_server, company, server_statuses):
+    """Check if an expected server is found in the database for a given company"""
+    if not server_statuses.get(company):
+        return False
+    
+    for server_list in server_statuses[company]:
+        for status in server_list:
+            clean_status_server = clean_server_name(status.server)
+            if expected_server in clean_status_server or expected_server in status.server:
+                return True
+    return False
+
 # Initialize Flask-SQLAlchemy
 db = SQLAlchemy(app)
 
@@ -484,15 +498,21 @@ def index():
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
                 server_statuses.setdefault(company_key, []).append(statuses)
-        # Sort companies, handling None values
-        companies = sorted(server_statuses.keys())
+        # Get all companies that have expected servers, not just those with data
+        from utils import EXPECTED_SERVERS
+        all_companies = sorted(set(list(server_statuses.keys()) + list(EXPECTED_SERVERS.keys())))
+        
+        # Filter out companies that should not appear on server backup page
+        companies_to_exclude = ['JSW Ltd', 'NHG Ltd', 'Bekat IT']
+        all_companies = [company for company in all_companies if company not in companies_to_exclude]
+        
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
         total_servers = sum(len(servers) for servers in server_statuses.values())
         return render_template('index.html', 
                              server_statuses=server_statuses, 
-                             companies=companies, 
+                             companies=all_companies, 
                              last_update=last_update, 
                              total_servers=total_servers,
                              status_count=status_count,
@@ -517,18 +537,26 @@ def nas_view():
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
                 server_statuses.setdefault(company_key, []).append(statuses)
-        # Sort companies, handling None values
-        companies = sorted(server_statuses.keys())
+        # Get all companies that have expected servers, not just those with data
+        from utils import EXPECTED_SERVERS
+        all_companies = sorted(set(list(server_statuses.keys()) + list(EXPECTED_SERVERS.keys())))
+        
+        # Filter out companies that should not appear on NAS page
+        companies_to_exclude = ['BRB Ltd', 'eHeating Ltd', 'JS Wilson Ltd']
+        all_companies = [company for company in all_companies if company not in companies_to_exclude]
+        
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
         total_servers = sum(len(servers) for servers in server_statuses.values())
         return render_template('nas.html',
                               server_statuses=server_statuses,
-                              companies=companies,
+                              companies=all_companies,
                               last_update=last_update,
                               total_servers=total_servers,
                               status_count=status_count,
+                              get_expected_servers=get_expected_servers,
+                              clean_server_name=clean_server_name,
                               version=VERSION)
 
 @app.route('/clear')
@@ -644,6 +672,28 @@ def configuration_page():
 @app.route('/test-route')
 def test_route():
     return "Test route is working!"
+
+@app.route('/debug-servers')
+@login_required
+def debug_servers():
+    """Debug route to show all servers in database"""
+    with app.app_context():
+        # Get all servers from database
+        servers = db.session.query(BackupStatus.server, BackupStatus.company, BackupStatus.email_type).distinct().all()
+        
+        debug_info = []
+        debug_info.append("=== DATABASE SERVERS ===")
+        for server, company, email_type in servers:
+            debug_info.append(f"Server: '{server}' | Company: '{company}' | Type: '{email_type}'")
+            debug_info.append(f"  Cleaned: '{clean_server_name(server)}'")
+        
+        debug_info.append("\n=== EXPECTED SERVERS ===")
+        for company, expected_list in get_expected_servers.__globals__['EXPECTED_SERVERS'].items():
+            debug_info.append(f"Company: '{company}'")
+            for server in expected_list:
+                debug_info.append(f"  Expected: '{server}'")
+        
+        return "<br>".join(debug_info)
 
 @app.route('/manual-refresh', methods=['GET', 'POST'])
 @login_required

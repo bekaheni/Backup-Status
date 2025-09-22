@@ -362,15 +362,15 @@ body {
 .server-found {
     color: var(--text-primary);
     font-weight: 500;
+    text-decoration: none !important;
 }
 
 .server-missing {
-    color: #ff4444;
+    background: linear-gradient(135deg, #ff4444, #ff6666) !important;
+    color: #ffffff !important;
     font-weight: 600;
-    text-decoration: underline;
-    text-decoration-color: #ff4444;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 2px;
+    text-decoration: none !important;
+    border-color: #ff2222 !important;
 }
 
 .expected-server-buttons {
@@ -410,7 +410,9 @@ body {
 }
 
 .server-grid.single-column {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 /* Server Cards */
