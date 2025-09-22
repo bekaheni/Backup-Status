@@ -126,7 +126,7 @@ def parse_backup_status(body, email_timestamp=None):
     # Success/Failed
     # Date Time
     pattern = re.compile(
-        r'([A-Za-z0-9]+)\s*\(([A-Za-z0-9]+)\)\s*([A-Za-z]+)\s*(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
+        r'([A-Za-z0-9\s]+?)\s*\(([A-Za-z0-9]+)\)\s*([A-Za-z]+)\s*(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
         re.DOTALL
     )
     
@@ -145,7 +145,7 @@ def parse_backup_status(body, email_timestamp=None):
         
         # Try to find multiple server entries in the email
         # Look for all server name and ID patterns
-        server_matches = re.findall(r'([A-Za-z0-9]+)\s*\(([A-Za-z0-9]+)\)', body)
+        server_matches = re.findall(r'([A-Za-z0-9\s]+?)\s*\(([A-Za-z0-9]+)\)', body)
         print(f"Found {len(server_matches)} server patterns: {server_matches}")
         
         # Look for all status patterns
