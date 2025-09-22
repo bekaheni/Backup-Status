@@ -125,13 +125,17 @@ def parse_backup_status(body, email_timestamp=None):
     # (ServerID)
     # Success/Failed
     # Date Time
+    # First, clean up the body to remove common prefix words
+    cleaned_body = re.sub(r'(?i)(email\s+notification\s*)', '', body)
+    cleaned_body = re.sub(r'(?i)(backup\s+offsite\s+replication\s*)', '', cleaned_body)
+    
     pattern = re.compile(
-        r'([A-Za-z0-9\s]+?)\s*\(([A-Za-z0-9]+)\)\s*([A-Za-z]+)\s*(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
+        r'([A-Za-z0-9][A-Za-z0-9\s]*?)\s*\(([A-Za-z0-9]+)\)\s*([A-Za-z]+)\s*(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})',
         re.DOTALL
     )
     
     results = []
-    matches = list(pattern.finditer(body))
+    matches = list(pattern.finditer(cleaned_body))
     print(f"Found {len(matches)} backup status entries")
     
     if len(matches) == 0:
@@ -145,15 +149,15 @@ def parse_backup_status(body, email_timestamp=None):
         
         # Try to find multiple server entries in the email
         # Look for all server name and ID patterns
-        server_matches = re.findall(r'([A-Za-z0-9\s]+?)\s*\(([A-Za-z0-9]+)\)', body)
+        server_matches = re.findall(r'([A-Za-z0-9][A-Za-z0-9\s]*?)\s*\(([A-Za-z0-9]+)\)', cleaned_body)
         print(f"Found {len(server_matches)} server patterns: {server_matches}")
         
         # Look for all status patterns
-        status_matches = re.findall(r'(Success|Failed|Overdue)', body)
+        status_matches = re.findall(r'(Success|Failed|Overdue)', cleaned_body)
         print(f"Found {len(status_matches)} status patterns: {status_matches}")
         
         # Look for timestamp
-        time_match = re.search(r'(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})', body)
+        time_match = re.search(r'(\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2})', cleaned_body)
         timestamp = None
         if time_match:
             dt_str = time_match.group(1).strip()
