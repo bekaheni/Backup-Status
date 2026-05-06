@@ -1,158 +1,178 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Backup</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.2.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <!-- Header Section -->
-    <header class="header">
-        <div class="header-content">
-            <div class="header-title-section">
-                <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight Logo" class="header-logo">
-                <h1 class="app-title">Server Backup</h1>
-            </div>
-            <nav class="main-nav">
-                <div class="nav-left">
-                    <a href="/" class="nav-btn active">Server Status</a>
-                    <a href="/nas" class="nav-btn">NAS Status</a>
-                    <a href="/configuration" class="nav-btn">Configuration</a>
-                                    <a href="/manual-refresh" class="nav-btn refresh-btn">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </a>
-                </div>
-                <div class="nav-right">
-                    <div class="update-info">
-                        <span class="last-update">Last Update: {{ last_update }}</span>
-                        <span class="total-servers">Total Servers: {{ total_servers }}</span>
-                    </div>
-                    <div class="user-controls">
-                        {% if current_user.is_authenticated %}
-                            <span class="user-info">Welcome, {{ current_user.username }}</span>
-                            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">Logout</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
+{% extends 'base.html' %}
+
+{% block title %}Servers{% endblock %}
+{% block page_title %}Server Backups{% endblock %}
+
+{% block content %}
+
+{# ── Compute stats (using filtered companies list to respect exclusions) ── #}
+{% set ns = namespace(total=0, healthy=0, failed=0, missing=0) %}
+{% for company in companies %}
+  {% if server_statuses.get(company) %}
+    {% for server_list in server_statuses[company] %}
+      {% set ns.total = ns.total + 1 %}
+      {% if server_list[0].status == 'successful' %}
+        {% set ns.healthy = ns.healthy + 1 %}
+      {% else %}
+        {% set ns.failed = ns.failed + 1 %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% for expected in get_expected_servers(company) %}
+    {% if not (expected|is_server_found(company, server_statuses)) %}
+      {% set ns.missing = ns.missing + 1 %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+<!-- Stats Strip -->
+<div class="stats-strip">
+  <div class="stat-card">
+    <div class="stat-card__label">Total</div>
+    <div class="stat-card__value">{{ ns.total }}</div>
+  </div>
+  <div class="stat-card stat-card--success">
+    <div class="stat-card__label">Healthy</div>
+    <div class="stat-card__value">{{ ns.healthy }}</div>
+  </div>
+  <div class="stat-card stat-card--error">
+    <div class="stat-card__label">Failed</div>
+    <div class="stat-card__value">{{ ns.failed }}</div>
+  </div>
+  <div class="stat-card stat-card--warning">
+    <div class="stat-card__label">Missing</div>
+    <div class="stat-card__value">{{ ns.missing }}</div>
+  </div>
+</div>
+
+<!-- Filter Row -->
+<div class="filter-row">
+  <input type="text" class="search-input" placeholder="Search servers…" data-search-input>
+  <button class="chip active" data-chip="all">All</button>
+  <button class="chip" data-chip="healthy">Healthy</button>
+  <button class="chip" data-chip="failed">Failed</button>
+  <div class="filter-divider"></div>
+  <label class="toggle-label">
+    <input type="checkbox" data-latest-toggle {% if status_count == 1 %}checked{% endif %}>
+    Latest only
+  </label>
+</div>
+
+{# ── Needs Attention Panel ── #}
+{% if ns.failed > 0 or ns.missing > 0 %}
+<div class="attention-panel">
+  <div class="attention-panel__title">Needs Attention</div>
+
+  {% if ns.failed > 0 %}
+  <div class="attention-panel__section">Failed in last run</div>
+  {% for company in companies %}
+    {% if server_statuses.get(company) %}
+      {% for server_list in server_statuses[company] %}
+        {% if server_list[0].status != 'successful' %}
+          {% set latest = server_list[0] %}
+          <div class="attention-row"
+               data-bs-toggle="modal"
+               data-bs-target="#emailModal"
+               data-server="{{ latest.server }}"
+               data-subject="{{ latest.subject }}"
+               data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
+               data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+            <span class="attention-dot attention-dot--error"></span>
+            {{ clean_server_name(latest.server) }} — {{ latest.company or 'Unknown' }}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if ns.missing > 0 %}
+  <div class="attention-panel__section">Missing — expected but not received</div>
+  {% for company in companies %}
+    {% for expected in get_expected_servers(company) %}
+      {% if not (expected|is_server_found(company, server_statuses)) %}
+        <div class="attention-row attention-row--missing">
+          <span class="attention-dot attention-dot--warning"></span>
+          {{ expected }} — {{ company }}
         </div>
-    </header>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% endif %}
+</div>
+{% endif %}
 
+{# ── Company Sections ── #}
+{% for company in companies %}
+<div class="company-section">
+  <h2 class="company-heading">{{ company }}</h2>
+  <div class="card-grid">
 
-
-    <!-- Toggle Bar -->
-    <div class="toggle-bar" style="justify-content: center;">
-        <div class="left-section">
-            <div class="toggle-container">
-                <label class="toggle-label">Show Latest Only</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="statusToggle" {% if status_count == 1 %}checked{% endif %}>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
+    {# Server cards from database #}
+    {% if server_statuses.get(company) %}
+      {% for server_list in server_statuses[company] %}
+        {% set latest = server_list[0] %}
+        {% set is_success = latest.status == 'successful' %}
+        <div class="server-card {% if is_success %}server-card--success{% else %}server-card--error{% endif %}"
+             data-card-name="{{ clean_server_name(latest.server) }}"
+             data-card-status="{{ latest.status }}"
+             data-bs-toggle="modal"
+             data-bs-target="#emailModal"
+             data-server="{{ latest.server }}"
+             data-subject="{{ latest.subject }}"
+             data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
+             data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+          <span class="status-pill {% if is_success %}status-pill--success{% else %}status-pill--error{% endif %}">
+            {% if is_success %}OK{% else %}Failed{% endif %}
+          </span>
+          <div class="card__name">{{ clean_server_name(latest.server) }}</div>
+          <div class="card__company">{{ latest.company or company }}</div>
+          <div class="card__time">
+            <span title="{{ latest.timestamp.strftime('%d %b %Y %H:%M') }}">{{ latest.timestamp.strftime('%d %b %Y %H:%M') }}</span>
+          </div>
         </div>
-        <div class="right-section">
-            <button onclick="refreshAllData()" class="delete-btn blue">
-                <i class="fas fa-sync-alt"></i> Refresh Data
-            </button>
+      {% endfor %}
+    {% endif %}
+
+    {# Missing server placeholder cards #}
+    {% for expected in get_expected_servers(company) %}
+      {% if not (expected|is_server_found(company, server_statuses)) %}
+        <div class="server-card server-card--missing">
+          <span class="status-pill status-pill--missing">Missing</span>
+          <div class="card__name">{{ expected }}</div>
+          <div class="card__company">{{ company }}</div>
         </div>
-    </div>
+      {% endif %}
+    {% endfor %}
 
-    <!-- Main Content -->
-    <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash-message {{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+    {# Empty state if no data at all #}
+    {% if not server_statuses.get(company) and not get_expected_servers(company) %}
+      <div class="empty-state">
+        <div class="empty-state__icon">○</div>
+        No server data available.
+      </div>
+    {% endif %}
 
-        {% for company in companies %}
-        <div class="company-section">
-            <h2 class="company-name">{{ company }}</h2>
-            {% set expected_servers = get_expected_servers(company) %}
-            {% if expected_servers %}
-            <div class="expected-servers">
-                <strong>Expected Servers:</strong> 
-                <div class="expected-server-buttons">
-                    {% for server in expected_servers %}
-                        {% set server_found = server|is_server_found(company, server_statuses) %}
-                        <!-- Debug: Expected: {{ server }} | Company: {{ company }} | Found: {{ server_found }} -->
-                        <span class="expected-server-btn {% if server_found %}server-found{% else %}server-missing{% endif %}">{{ server }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
-                {% if server_statuses.get(company) %}
-                    {% for server_list in server_statuses[company] %}
-                        {% for status in server_list %}
-                    <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
-                         data-bs-toggle="modal" 
-                         data-bs-target="#emailModal"
-                         data-server="{{ status.server }}"
-                         data-subject="{{ status.subject }}"
-                         data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                         data-body="{{ status.html_body|default(status.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
-                         style="cursor: pointer;">
-                        <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
-                        <div class="server-content">
-                            <div class="server-name">{{ status.server }}</div>
-                            <div class="status-section">
-                                <span class="status-{{ status.status }}">{{ status.status|title }}</span>
-                            </div>
-                            <div class="timestamp-section">
-                                <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
-                            </div>
-                        </div>
-                    </div>
-                        {% endfor %}
-                    {% endfor %}
-                {% else %}
-                    <div class="no-servers-message">
-                        <p>No server data available for this company yet.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+  </div>
+</div>
+{% endfor %}
 
+{% endblock %}
 
-    </div>
-    
-    <!-- Include Modal Template -->
-    {% include 'modal.html' %}
-
-    <!-- Version Display -->
-    <div class="version-display">
-        v{{ version }}
-    </div>
-
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Handle toggle switch functionality
-        var statusToggle = document.getElementById('statusToggle');
-        if (statusToggle) {
-            statusToggle.addEventListener('change', function() {
-                var statusCount = this.checked ? 1 : 2;
-                var currentUrl = new URL(window.location);
-                currentUrl.searchParams.set('status_count', statusCount);
-                window.location.href = currentUrl.toString();
-            });
-        }
-    });
-    </script>
-</body>
-</html> 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script>
+  var pageType = 'server';
+  var statusCount = {{ status_count }};
+  (function () {
+    var toggle = document.querySelector('[data-latest-toggle]');
+    if (toggle) {
+      toggle.addEventListener('change', function () {
+        var url = new URL(window.location.href);
+        url.searchParams.set('status_count', this.checked ? 1 : 2);
+        window.location.href = url.toString();
+      });
+    }
+  })();
+</script>
+{% endblock %}
