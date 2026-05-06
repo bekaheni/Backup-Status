@@ -5,3 +5,58 @@ instance/
 __pycache__/
 *.pyc
 .env 
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Secrets — note: .env is already in git history on GitHub;
+# this stops tracking it going forward but does NOT scrub history.
+# Rotate the IMAP password and SECRET_KEY values separately.
+.env
+.env.old
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Flask / SQLite local state
+instance/
+backup_status.db
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Secrets — note: .env is already in git history on GitHub;
+# this stops tracking it going forward but does NOT scrub history.
+# Rotate the IMAP password and SECRET_KEY values separately.
+.env
+.env.old
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Flask / SQLite local state
+instance/
+backup_status.db
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
