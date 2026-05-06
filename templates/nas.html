@@ -29,19 +29,19 @@
 <div class="stats-strip">
   <div class="stat-card">
     <div class="stat-card__label">Devices</div>
-    <div class="stat-card__value">{{ ns.total }}</div>
+    <div class="stat-card__value" data-stat="total">{{ ns.total }}</div>
   </div>
   <div class="stat-card stat-card--success">
     <div class="stat-card__label">Healthy</div>
-    <div class="stat-card__value">{{ ns.healthy }}</div>
+    <div class="stat-card__value" data-stat="healthy">{{ ns.healthy }}</div>
   </div>
   <div class="stat-card stat-card--error">
     <div class="stat-card__label">Failed</div>
-    <div class="stat-card__value">{{ ns.failed }}</div>
+    <div class="stat-card__value" data-stat="failed">{{ ns.failed }}</div>
   </div>
   <div class="stat-card stat-card--warning">
     <div class="stat-card__label">Missing</div>
-    <div class="stat-card__value">{{ ns.missing }}</div>
+    <div class="stat-card__value" data-stat="missing">{{ ns.missing }}</div>
   </div>
 </div>
 
@@ -104,7 +104,7 @@
 
 {# ── Company Sections ── #}
 {% for company in companies %}
-<div class="company-section">
+<div class="company-section" data-company="{{ company }}">
   <h2 class="company-heading">{{ company }}</h2>
   <div class="card-grid">
 
@@ -137,7 +137,9 @@
     {# Missing device placeholder cards #}
     {% for expected in get_expected_servers(company) %}
       {% if not (expected|is_server_found(company, server_statuses)) %}
-        <div class="server-card server-card--missing">
+        <div class="server-card server-card--missing"
+             data-card-name="{{ expected }}"
+             data-card-status="missing">
           <span class="status-pill status-pill--missing">Missing</span>
           <div class="card__name">{{ expected }}</div>
           <div class="card__company">{{ company }}</div>
@@ -175,4 +177,5 @@
     }
   })();
 </script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

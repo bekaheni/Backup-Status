@@ -736,12 +736,6 @@ with app.app_context():
     else:
         print("Admin user already exists")
 
-if __name__ == '__main__':
-    start_background_jobs()
-    update_existing_companies()  # TEMP: update company names in DB after mapping change
-    app.run(host='0.0.0.0', port=5000, debug=False)
-
-
 # ─── JSON API endpoints (redesign step 2) ────────────────────────────────────
 
 _EXCLUDE_COMPANIES = {
@@ -921,4 +915,10 @@ def shutdown_session(exception=None):
     """Clean up the database session at the end of each request."""
     if exception:
         db.session.rollback()
-    db.session.close() 
+    db.session.close()
+
+
+if __name__ == '__main__':
+    start_background_jobs()
+    update_existing_companies()  # TEMP: update company names in DB after mapping change
+    app.run(host='0.0.0.0', port=5000, debug=False)
