@@ -1,449 +1,178 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAS Backup</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .header {
-            background: var(--bg-primary);
-            padding: 1rem 0;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid var(--accent-cyan);
-        }
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-        .app-title {
-            font-size: 1.8rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0;
-        }
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-        }
-        .nav-btn {
-            background: var(--accent-cyan);
-            color: var(--bg-primary);
-            border: none;
-            padding: 0.5rem 1.2rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            text-decoration: none;
-            transition: background 0.2s;
-        }
-        .nav-btn:hover {
-            background: #00B8E6;
-            color: var(--bg-primary);
-        }
-        .header-info {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-        .last-update, .total-servers {
-            color: var(--accent-cyan);
-            font-size: 0.95rem;
-            font-weight: 400;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            flex: 1;
-        }
-        .server-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Default: 2 columns */
-            gap: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Single column layout when showing only one backup per server */
-        .server-grid.single-column {
-            grid-template-columns: 1fr; /* Single column */
-        }
-        .server-group {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .server-group:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        .server-group-unsuccessful {
-            background: #2A1A1A;
-            border-color: var(--error-red);
-        }
-        .card-top-line {
-            height: 4px;
-            background: var(--success-green);
-            margin: -1rem -1rem 1rem -1rem;
-            border-radius: 12px 12px 0 0;
-        }
-        .card-top-line-successful {
-            background: var(--success-green);
-        }
-        .card-top-line-unsuccessful {
-            background: var(--error-red);
-        }
-        .server-content {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .server-name {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 1.1rem;
-        }
-        .status-section {
-            display: flex;
-            align-items: center;
-        }
-        
-        .timestamp-section {
-            display: flex;
-            align-items: center;
-            margin-top: auto;
-        }
-        .status-successful {
-            color: var(--success-green);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .status-successful::before {
-            content: "✓";
-            font-weight: bold;
-        }
-        .status-unsuccessful {
-            color: var(--error-red);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .status-unsuccessful::before {
-            content: "✕";
-            font-weight: bold;
-        }
-        .timestamp {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            font-weight: 400;
-        }
-        .company-section {
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 1.2rem 1rem 1rem 1rem;
-            background: none;
-        }
-        .company-name {
-            color: var(--text-primary);
-            font-size: 1.4rem;
-            margin-bottom: 0.8rem;
-            padding-bottom: 0.4rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-        @media (max-width: 1200px) {
-            .server-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        @media (max-width: 768px) {
-            .server-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+{% extends 'base.html' %}
 
-        
+{% block title %}NAS{% endblock %}
+{% block page_title %}NAS Backups{% endblock %}
 
+{% block content %}
 
-        .main-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .nav-left {
-            display: flex;
-            gap: 1rem;
-        }
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-        }
-        .update-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 0.2rem;
-        }
-        .user-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        /* Toggle Bar Styles */
-        .toggle-bar {
-            width: 100%;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0.5rem 0;
-            margin-bottom: 1rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .toggle-container {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 0.7rem;
-        }
-        
-        .toggle-label {
-            color: var(--accent-cyan);
-            font-size: 1rem;
-            font-weight: 500;
-        }
-        
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--border-color);
-            transition: .4s;
-            border-radius: 24px;
-            border: 2px solid var(--text-muted);
-        }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 2px;
-            bottom: 2px;
-            background-color: var(--text-muted);
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .toggle-slider {
-            background-color: var(--accent-cyan);
-            border-color: var(--accent-cyan);
-        }
-        
-        input:checked + .toggle-slider:before {
-            transform: translateX(26px);
-            background-color: var(--bg-primary);
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .nav-left {
-                flex-wrap: wrap;
-                gap: 0.5rem;
-            }
-        }
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.5rem;
-            margin-top: 1rem;
-        }
+{# ── Compute stats (using filtered companies list to respect exclusions) ── #}
+{% set ns = namespace(total=0, healthy=0, failed=0, missing=0) %}
+{% for company in companies %}
+  {% if server_statuses.get(company) %}
+    {% for server_list in server_statuses[company] %}
+      {% set ns.total = ns.total + 1 %}
+      {% if server_list[0].status == 'successful' %}
+        {% set ns.healthy = ns.healthy + 1 %}
+      {% else %}
+        {% set ns.failed = ns.failed + 1 %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% for expected in get_expected_servers(company) %}
+    {% if not (expected|is_server_found(company, server_statuses)) %}
+      {% set ns.missing = ns.missing + 1 %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
 
-        /* Version display */
-        .version-display {
-            position: fixed;
-            bottom: 10px;
-            right: 15px;
-            background: rgba(0, 212, 255, 0.1);
-            color: var(--accent-cyan);
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            z-index: 1000;
-        }
-    </style>
-</head>
-<body>
-    <!-- Header Section -->
-    <header class="header">
-        <div class="header-content">
-            <div class="header-title-section">
-                <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight Logo" class="header-logo">
-                <h1 class="app-title">NAS Backup</h1>
-            </div>
-            <nav class="main-nav">
-                <div class="nav-left">
-                    <a href="/" class="nav-btn">Server Status</a>
-                    <a href="/nas" class="nav-btn active">NAS Status</a>
-                    <a href="/configuration" class="nav-btn">Configuration</a>
-                                    <a href="/manual-refresh" class="nav-btn refresh-btn">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </a>
-                </div>
-                <div class="nav-right">
-                    <div class="update-info">
-                        <span class="last-update">Last Update: {{ last_update }}</span>
-                        <span class="total-servers">Total NAS: {{ total_nas }}</span>
-                    </div>
-                    <div class="user-controls">
-                        {% if current_user.is_authenticated %}
-                            <span class="user-info">Welcome, {{ current_user.username }}</span>
-                            <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">Logout</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
+<!-- Stats Strip -->
+<div class="stats-strip">
+  <div class="stat-card">
+    <div class="stat-card__label">Devices</div>
+    <div class="stat-card__value">{{ ns.total }}</div>
+  </div>
+  <div class="stat-card stat-card--success">
+    <div class="stat-card__label">Healthy</div>
+    <div class="stat-card__value">{{ ns.healthy }}</div>
+  </div>
+  <div class="stat-card stat-card--error">
+    <div class="stat-card__label">Failed</div>
+    <div class="stat-card__value">{{ ns.failed }}</div>
+  </div>
+  <div class="stat-card stat-card--warning">
+    <div class="stat-card__label">Missing</div>
+    <div class="stat-card__value">{{ ns.missing }}</div>
+  </div>
+</div>
+
+<!-- Filter Row -->
+<div class="filter-row">
+  <input type="text" class="search-input" placeholder="Search devices…" data-search-input>
+  <button class="chip active" data-chip="all">All</button>
+  <button class="chip" data-chip="healthy">Healthy</button>
+  <button class="chip" data-chip="failed">Failed</button>
+  <div class="filter-divider"></div>
+  <label class="toggle-label">
+    <input type="checkbox" data-latest-toggle {% if status_count == 1 %}checked{% endif %}>
+    Latest only
+  </label>
+</div>
+
+{# ── Needs Attention Panel ── #}
+{% if ns.failed > 0 or ns.missing > 0 %}
+<div class="attention-panel">
+  <div class="attention-panel__title">Needs Attention</div>
+
+  {% if ns.failed > 0 %}
+  <div class="attention-panel__section">Failed in last run</div>
+  {% for company in companies %}
+    {% if server_statuses.get(company) %}
+      {% for server_list in server_statuses[company] %}
+        {% if server_list[0].status != 'successful' %}
+          {% set latest = server_list[0] %}
+          <div class="attention-row"
+               data-bs-toggle="modal"
+               data-bs-target="#emailModal"
+               data-server="{{ latest.server }}"
+               data-subject="{{ latest.subject }}"
+               data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
+               data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+            <span class="attention-dot attention-dot--error"></span>
+            {{ clean_server_name(latest.server) }} — {{ latest.company or 'Unknown' }}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if ns.missing > 0 %}
+  <div class="attention-panel__section">Missing — expected but not received</div>
+  {% for company in companies %}
+    {% for expected in get_expected_servers(company) %}
+      {% if not (expected|is_server_found(company, server_statuses)) %}
+        <div class="attention-row attention-row--missing">
+          <span class="attention-dot attention-dot--warning"></span>
+          {{ expected }} — {{ company }}
         </div>
-    </header>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% endif %}
+</div>
+{% endif %}
 
-    <!-- Toggle Bar -->
-    <div class="toggle-bar">
-        <div class="left-section">
-            <div class="toggle-container">
-                <label class="toggle-label">Show Latest Only</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="statusToggle" {% if status_count == 1 %}checked{% endif %}>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
+{# ── Company Sections ── #}
+{% for company in companies %}
+<div class="company-section">
+  <h2 class="company-heading">{{ company }}</h2>
+  <div class="card-grid">
+
+    {# Device cards from database #}
+    {% if server_statuses.get(company) %}
+      {% for server_list in server_statuses[company] %}
+        {% set latest = server_list[0] %}
+        {% set is_success = latest.status == 'successful' %}
+        <div class="server-card {% if is_success %}server-card--success{% else %}server-card--error{% endif %}"
+             data-card-name="{{ clean_server_name(latest.server) }}"
+             data-card-status="{{ latest.status }}"
+             data-bs-toggle="modal"
+             data-bs-target="#emailModal"
+             data-server="{{ latest.server }}"
+             data-subject="{{ latest.subject }}"
+             data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
+             data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+          <span class="status-pill {% if is_success %}status-pill--success{% else %}status-pill--error{% endif %}">
+            {% if is_success %}OK{% else %}Failed{% endif %}
+          </span>
+          <div class="card__name">{{ clean_server_name(latest.server) }}</div>
+          <div class="card__company">{{ latest.company or company }}</div>
+          <div class="card__time">
+            <span title="{{ latest.timestamp.strftime('%d %b %Y %H:%M') }}">{{ latest.timestamp.strftime('%d %b %Y %H:%M') }}</span>
+          </div>
         </div>
-        <div class="right-section">
-            <button onclick="refreshAllData()" class="delete-btn blue">
-                <i class="fas fa-sync-alt"></i> Refresh Data
-            </button>
+      {% endfor %}
+    {% endif %}
+
+    {# Missing device placeholder cards #}
+    {% for expected in get_expected_servers(company) %}
+      {% if not (expected|is_server_found(company, server_statuses)) %}
+        <div class="server-card server-card--missing">
+          <span class="status-pill status-pill--missing">Missing</span>
+          <div class="card__name">{{ expected }}</div>
+          <div class="card__company">{{ company }}</div>
         </div>
-    </div>
+      {% endif %}
+    {% endfor %}
 
-    <!-- Main Content -->
-    <div class="container">
+    {# Empty state if no data at all #}
+    {% if not server_statuses.get(company) and not get_expected_servers(company) %}
+      <div class="empty-state">
+        <div class="empty-state__icon">○</div>
+        No device data available.
+      </div>
+    {% endif %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash-message {{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+  </div>
+</div>
+{% endfor %}
 
-        {% for company in companies %}
-        <div class="company-section">
-            <h2 class="company-name">{{ company }}</h2>
-            <div class="server-grid {% if status_count == 1 %}single-column{% endif %}">
-                {% if server_statuses.get(company) %}
-                    {% for server_list in server_statuses[company] %}
-                        {% for status in server_list %}
-                    <div class="server-group {% if status.status == 'unsuccessful' %}server-group-unsuccessful{% endif %}"
-                         data-bs-toggle="modal" 
-                         data-bs-target="#emailModal"
-                         data-server="{{ status.server }}"
-                         data-subject="{{ status.subject }}"
-                         data-timestamp="{{ status.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                         data-body="{{ status.html_body|default(status.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
-                         style="cursor: pointer;">
-                        <div class="card-top-line {% if status.status == 'successful' %}card-top-line-successful{% else %}card-top-line-unsuccessful{% endif %}"></div>
-                        <div class="server-content">
-                            <div class="server-name">{{ status.server }}</div>
-                            <div class="status-section">
-                                <span class="status-{{ status.status }}">{{ status.status }}</span>
-                            </div>
-                            <div class="timestamp-section">
-                                <span class="timestamp">{{ status.timestamp.strftime('%d %b %Y %H:%M') }}</span>
-                            </div>
-                        </div>
-                    </div>
-                        {% endfor %}
-                    {% endfor %}
-                {% else %}
-                    <div class="no-servers-message">
-                        <p>No server data available for this company yet.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+{% endblock %}
 
-    </div>
-
-    <!-- Include Modal Template -->
-    {% include 'modal.html' %}
-
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Handle toggle switch functionality
-        var statusToggle = document.getElementById('statusToggle');
-        if (statusToggle) {
-            statusToggle.addEventListener('change', function() {
-                var statusCount = this.checked ? 1 : 2;
-                var currentUrl = new URL(window.location);
-                currentUrl.searchParams.set('status_count', statusCount);
-                window.location.href = currentUrl.toString();
-            });
-        }
-    });
-    </script>
-    
-    <!-- Version Display -->
-    <div class="version-display">
-        v{{ version }}
-    </div>
-</body>
-</html> 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script>
+  var pageType = 'nas';
+  var statusCount = {{ status_count }};
+  (function () {
+    var toggle = document.querySelector('[data-latest-toggle]');
+    if (toggle) {
+      toggle.addEventListener('change', function () {
+        var url = new URL(window.location.href);
+        url.searchParams.set('status_count', this.checked ? 1 : 2);
+        window.location.href = url.toString();
+      });
+    }
+  })();
+</script>
+{% endblock %}
