@@ -1,0 +1,21 @@
+[Unit]
+Description=Gunicorn instance for Backup Status Dashboard
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/backup-status
+EnvironmentFile=/opt/backup-status/.env
+ExecStart=/opt/backup-status/venv/bin/gunicorn \
+    --workers 2 \
+    --bind unix:/opt/backup-status/backup-status.sock \
+    app:app
+Restart=on-failure
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-status
+
+[Install]
+WantedBy=multi-user.target
