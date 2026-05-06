@@ -738,6 +738,180 @@ if __name__ == '__main__':
     update_existing_companies()  # TEMP: update company names in DB after mapping change
     app.run(host='0.0.0.0', port=5000, debug=False)
 
+
+# ─── JSON API endpoints (redesign step 2) ────────────────────────────────────
+
+_EXCLUDE_COMPANIES = {
+    'server': {'JSW Ltd', 'NHG Ltd', 'Bekat IT'},
+    'nas':    {'BRB Ltd', 'eHeating Ltd', 'JS Wilson Ltd'},
+}
+
+
+def _relative_time(dt):
+    seconds = int((datetime.now() - dt).total_seconds())
+    if seconds < 60:
+        return 'just now'
+    if seconds < 3600:
+        return f'{seconds // 60}m ago'
+    if seconds < 86400:
+        return f'{seconds // 3600}h ago'
+    return f'{seconds // 86400}d ago'
+
+
+def _latest_per_server(email_type):
+    """Return the single most-recent BackupStatus row per server for the given email_type."""
+    subq = (
+        db.session.query(
+            BackupStatus.server,
+            db.func.max(BackupStatus.timestamp).label('max_ts')
+        )
+        .filter(BackupStatus.email_type == email_type)
+        .group_by(BackupStatus.server)
+        .subquery()
+    )
+    return (
+        db.session.query(BackupStatus)
+        .join(subq, db.and_(
+            BackupStatus.server == subq.c.server,
+            BackupStatus.timestamp == subq.c.max_ts,
+        ))
+        .filter(BackupStatus.email_type == email_type)
+        .all()
+    )
+
+
+def _server_present(expected, records):
+    """True if expected name is a substring of any record's raw or cleaned server name."""
+    for r in records:
+        if expected in r.server or expected in clean_server_name(r.server):
+            return True
+    return False
+
+
+def _build_status_summary():
+    """Shared JSON payload for /api/refresh-status and /api/refresh."""
+    from utils import EXPECTED_SERVERS
+
+    latest = BackupStatus.query.order_by(BackupStatus.timestamp.desc()).first()
+    last_fetched = latest.timestamp.isoformat() if latest else None
+
+    breakdown = {}
+    total_servers = 0
+
+    for email_type in ('server', 'nas'):
+        records = _latest_per_server(email_type)
+        total = len(records)
+        successful = sum(1 for r in records if r.status == 'successful')
+        unsuccessful = total - successful
+
+        excluded = _EXCLUDE_COMPANIES[email_type]
+        missing = 0
+        for company, expected_list in EXPECTED_SERVERS.items():
+            if company in excluded:
+                continue
+            company_records = [r for r in records if r.company == company]
+            missing += sum(
+                1 for e in expected_list if not _server_present(e, company_records)
+            )
+
+        breakdown[email_type] = {
+            'total': total,
+            'successful': successful,
+            'unsuccessful': unsuccessful,
+            'missing': missing,
+        }
+        total_servers += total
+
+    return {
+        'last_fetched': last_fetched,
+        'total_servers': total_servers,
+        'breakdown': breakdown,
+    }
+
+
+@app.route('/api/refresh-status')
+@login_required
+def api_refresh_status():
+    return jsonify(_build_status_summary())
+
+
+@app.route('/api/refresh', methods=['POST'])
+@login_required
+def api_refresh():
+    check_email('server')
+    check_email('nas')
+    return jsonify(_build_status_summary())
+
+
+@app.route('/api/servers')
+@login_required
+def api_servers():
+    from utils import EXPECTED_SERVERS
+
+    email_type = request.args.get('type', 'server')
+    status_filter = request.args.get('status')
+    q = request.args.get('q', '').strip().lower()
+
+    excluded = _EXCLUDE_COMPANIES.get(email_type, set())
+
+    all_records = _latest_per_server(email_type)
+
+    display_records = all_records
+    if status_filter:
+        display_records = [r for r in display_records if r.status == status_filter]
+    if q:
+        display_records = [
+            r for r in display_records
+            if q in r.server.lower() or q in clean_server_name(r.server).lower()
+        ]
+
+    by_company = {}
+    for record in display_records:
+        company = record.company or 'Unknown'
+        if company in excluded:
+            continue
+        by_company.setdefault(company, []).append(record)
+
+    visible_expected = {c for c in EXPECTED_SERVERS if c not in excluded}
+    all_companies = sorted(set(list(by_company.keys()) + list(visible_expected)))
+
+    companies_out = []
+    for company in all_companies:
+        server_entries = [
+            {
+                'id': r.id,
+                'server': r.server,
+                'server_clean': clean_server_name(r.server),
+                'company': r.company,
+                'status': r.status,
+                'timestamp': r.timestamp.isoformat(),
+                'timestamp_relative': _relative_time(r.timestamp),
+                'subject': r.subject,
+                'is_latest': True,
+            }
+            for r in by_company.get(company, [])
+        ]
+
+        company_all_records = [r for r in all_records if r.company == company]
+        missing_servers = [
+            e for e in EXPECTED_SERVERS.get(company, [])
+            if not _server_present(e, company_all_records)
+        ]
+
+        if not server_entries and not missing_servers:
+            continue
+
+        companies_out.append({
+            'name': company,
+            'servers': server_entries,
+            'missing': missing_servers,
+        })
+
+    return jsonify({'companies': companies_out})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Configure session handling
 @app.teardown_appcontext
 def shutdown_session(exception=None):
