@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+function copyEmailBody(btn) {
+    var body = document.getElementById('modalBody').textContent;
+    navigator.clipboard.writeText(body).then(function () {
+        var original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = original; }, 1500);
+    });
+}
+
 // Function to sanitize email content
 function sanitizeEmailContent(htmlContent) {
     if (!htmlContent) return '';
