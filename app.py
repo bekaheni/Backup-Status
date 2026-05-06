@@ -658,16 +658,19 @@ def parsing_logic():
 
 @app.route('/template')
 def template_page():
-    from flask_login import current_user
-    # Provide dummy values for last_update and total_servers for template testing
-    return render_template('template.html', last_update='2025-06-12 22:20', total_servers=16, current_user=current_user)
+    return redirect(url_for('configuration_page'))
 
 @app.route('/configuration')
 def configuration_page():
     from flask_login import current_user
     server_inbox = os.getenv('EMAIL', 'not set')
     nas_inbox = os.getenv('NAS_EMAIL', 'not set')
-    return render_template('configuration.html', current_user=current_user, server_inbox=server_inbox, nas_inbox=nas_inbox)
+    imap_server = os.getenv('IMAP_SERVER', 'not set')
+    nas_imap_server = os.getenv('NAS_IMAP_SERVER', 'not set')
+    scheduler_interval = 'Every 5 minutes'
+    return render_template('configuration.html', current_user=current_user, server_inbox=server_inbox,
+                           nas_inbox=nas_inbox, imap_server=imap_server,
+                           nas_imap_server=nas_imap_server, scheduler_interval=scheduler_interval)
 
 @app.route('/test-route')
 def test_route():

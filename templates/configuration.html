@@ -1,77 +1,95 @@
-{% extends "template.html" %}
+{% extends 'base.html' %}
+
+{% block title %}Configuration{% endblock %}
+{% block page_title %}Configuration{% endblock %}
+
 {% block content %}
-<style>
-    .config-section {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-        max-width: 900px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .config-title {
-        color: var(--accent-cyan);
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-    }
-    .config-body {
-        color: var(--text-primary);
-        font-size: 1.05rem;
-        line-height: 1.6;
-    }
-    .email-box {
-        width: 100%;
-        background: var(--bg-card);
-        color: var(--accent-cyan);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-family: monospace;
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        resize: none;
-        transition: border-color 0.2s ease;
-    }
-    .email-box:focus {
-        outline: none;
-        border-color: var(--accent-cyan);
-        box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
-    }
-    .config-body code {
-        background: var(--bg-card);
-        color: var(--accent-cyan);
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
-        font-family: monospace;
-        border: 1px solid var(--border-color);
-    }
-    .config-body b {
-        color: var(--accent-cyan);
-        font-weight: 600;
-    }
-</style>
-<div class="config-section">
-    <textarea class="email-box" readonly>Email used = {{ server_inbox }}</textarea>
-    <div class="config-title">Server Backup eMail Parsing</div>
-    <div class="config-body">
-        The system parses server backup emails by looking for lines in the following format:<br>
-        <code>ServerName (ServerID) Success/Failed Date Time</code><br>
-        <br>
-        <b>Example:</b> <code>BRBD (BRBHV02) Success 15 Mar 2024 14:30</code><br><br>
-        If this format is not found, it tries to extract the server name, status (Success/Failed), and timestamp using alternative patterns, such as bold text or searching for keywords. The extracted information is then used to record the backup status for each server.
-    </div>
+
+<div class="page-header">
+  <h1>Configuration</h1>
 </div>
-<div class="config-section">
-    <textarea class="email-box" readonly>Email used = {{ nas_inbox }}</textarea>
-    <div class="config-title">NAS Backup eMail Parsing</div>
-    <div class="config-body">
-        For NAS backup emails, the system determines the backup status from the subject line (looking for words like 'successful', 'failed', or 'unsuccessful').<br><br>
-        It tries to identify the device name from the subject (after 'on') or from the body (after 'From').<br><br>
-        The timestamp is extracted from a line starting with <code>Start Time:</code> in the email body, or the current time is used if not found.<br><br>
-        All this information is used to record the NAS backup status.
-    </div>
+
+<!-- Connection Settings -->
+<div class="info-panel">
+  <div class="info-panel__title">Connection Settings</div>
+  <div class="info-row">
+    <span style="color: var(--muted); min-width: 160px;">Server Inbox</span>
+    <span>{{ server_inbox }}</span>
+  </div>
+  <div class="info-row">
+    <span style="color: var(--muted); min-width: 160px;">NAS Inbox</span>
+    <span>{{ nas_inbox }}</span>
+  </div>
+  <div class="info-row">
+    <span style="color: var(--muted); min-width: 160px;">IMAP Host</span>
+    <span>{{ imap_server }}</span>
+  </div>
+  <div class="info-row">
+    <span style="color: var(--muted); min-width: 160px;">Scheduler</span>
+    <span>{{ scheduler_interval }}</span>
+  </div>
 </div>
-{% endblock %} 
+
+<!-- How Email Parsing Works -->
+<div class="info-panel">
+  <div class="info-panel__title">How Email Parsing Works</div>
+
+  <div style="margin-bottom: 20px;">
+    <div style="font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Server Backup Email Parsing</div>
+    <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
+      The system parses server backup emails by looking for lines in the following format:<br>
+      <code style="background: var(--bg); color: var(--accent); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 13px;">ServerName (ServerID) Success/Failed Date Time</code>
+      <br><br>
+      <strong style="color: var(--accent);">Example:</strong>
+      <code style="background: var(--bg); color: var(--accent); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 13px;">BRBD (BRBHV02) Success 15 Mar 2024 14:30</code>
+      <br><br>
+      If this format is not found, it tries to extract the server name, status (Success/Failed), and timestamp using alternative patterns, such as bold text or searching for keywords. The extracted information is then used to record the backup status for each server.
+    </div>
+  </div>
+
+  <div style="border-top: 1px solid var(--border); padding-top: 20px;">
+    <div style="font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">NAS Backup Email Parsing</div>
+    <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
+      For NAS backup emails, the system determines the backup status from the subject line (looking for words like 'successful', 'failed', or 'unsuccessful').<br><br>
+      It tries to identify the device name from the subject (after 'on') or from the body (after 'From').<br><br>
+      The timestamp is extracted from a line starting with
+      <code style="background: var(--bg); color: var(--accent); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 13px;">Start Time:</code>
+      in the email body, or the current time is used if not found.<br><br>
+      All this information is used to record the NAS backup status.
+    </div>
+  </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="danger-zone">
+  <div class="danger-zone__title">Danger Zone</div>
+  <div class="danger-zone__desc">These actions are irreversible and should be used with caution.</div>
+
+  <div class="danger-zone__item">
+    <div class="danger-zone__item-info">
+      <strong>Clear Server Database</strong>
+      <span>Delete all server backup records from the database</span>
+    </div>
+    <button class="btn btn-danger" data-action="clear-server">Clear Server Database</button>
+  </div>
+
+  <div class="danger-zone__item">
+    <div class="danger-zone__item-info">
+      <strong>Clear NAS Database</strong>
+      <span>Delete all NAS backup records from the database</span>
+    </div>
+    <button class="btn btn-danger" data-action="clear-nas">Clear NAS Database</button>
+  </div>
+
+  <div class="danger-zone__item">
+    <div class="danger-zone__item-info">
+      <strong>Delete Old Emails</strong>
+      <span>Permanently delete emails older than 10 days from both inboxes</span>
+    </div>
+    <button class="btn btn-danger" data-action="delete-emails">Delete Old Emails</button>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+
+{% endblock %}
