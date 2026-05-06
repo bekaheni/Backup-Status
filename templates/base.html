@@ -1,66 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backup Status</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #111;
-            color: #fff;
-            min-height: 100vh;
-        }
-        .navbar {
-            background: #181a1b !important;
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #2fff7f33;
-            margin-bottom: 0;
-        }
-        .navbar-brand, .navbar-nav .nav-link {
-            color: #2fff7f !important;
-            font-weight: 500;
-            font-size: 1.1rem;
-        }
-        .navbar-nav .nav-link.active, .navbar-nav .nav-link:focus, .navbar-nav .nav-link:hover {
-            color: #fff !important;
-        }
-        .container, .container.mt-4 {
-            margin-top: 24px !important;
-        }
-        .status-successful {
-            color: #198754;
-        }
-        .status-unsuccessful {
-            color: #dc3545;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Backup Status{% endblock %} — CoreSight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid" style="max-width: 1200px;">
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Server Backups</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/nas">NAS Backups</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/parsing-logic">Configuration</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
+
+  <!-- App Bar -->
+  <header class="app-bar">
+    <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight" class="app-bar__logo">
+    <span class="app-bar__title">{% block page_title %}CoreSight{% endblock %}</span>
+
+    <!-- Desktop Nav -->
+    <nav class="app-bar__nav">
+      <a href="{{ url_for('index') }}"
+         class="nav-link{% if request.endpoint == 'index' %} active{% endif %}">Servers</a>
+      <a href="{{ url_for('nas_view') }}"
+         class="nav-link{% if request.endpoint == 'nas_view' %} active{% endif %}">NAS</a>
+      <a href="{{ url_for('configuration_page') }}"
+         class="nav-link{% if request.endpoint == 'configuration_page' %} active{% endif %}">Configuration</a>
     </nav>
 
-    {% block content %}{% endblock %}
+    <!-- Right cluster -->
+    <div class="app-bar__right">
+      <span class="last-fetched" id="lastFetched">Last fetched: —</span>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+      <!-- Fetch Now button — only shown when logged in, only on dashboard pages -->
+      {% if current_user.is_authenticated %}
+      <button class="btn-fetch" id="fetchBtn" title="Fetch latest emails">
+        <!-- Inline SVG refresh icon -->
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.65 2.35A8 8 0 1 0 15 8h-2a6 6 0 1 1-1.76-4.24L9 6h6V0l-1.35 2.35z"
+                fill="currentColor"/>
+        </svg>
+      </button>
+      <span class="user-label">{{ current_user.username }}</span>
+      <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+      {% endif %}
+
+      <!-- Mobile hamburger -->
+      <button class="nav-mobile-toggle" id="mobileNavToggle" aria-label="Open menu">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Nav Dropdown -->
+  <div class="nav-mobile" id="mobileNav">
+    <a href="{{ url_for('index') }}"
+       class="nav-link{% if request.endpoint == 'index' %} active{% endif %}">Servers</a>
+    <a href="{{ url_for('nas_view') }}"
+       class="nav-link{% if request.endpoint == 'nas_view' %} active{% endif %}">NAS</a>
+    <a href="{{ url_for('configuration_page') }}"
+       class="nav-link{% if request.endpoint == 'configuration_page' %} active{% endif %}">Configuration</a>
+  </div>
+
+  <!-- Page Content -->
+  <main class="page-wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Email Detail Modal (existing modal kept intact) -->
+  {% include 'modal.html' %}
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Version Badge -->
+  <div class="version-badge">v{{ version }}</div>
+
+  <!-- Bootstrap JS bundle (for modal data-bs-toggle only — no Bootstrap CSS) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Mobile nav toggle script -->
+  <script>
+    (function() {
+      var toggle = document.getElementById('mobileNavToggle');
+      var nav    = document.getElementById('mobileNav');
+      if (toggle && nav) {
+        toggle.addEventListener('click', function() {
+          nav.classList.toggle('nav-mobile--open');
+        });
+      }
+    })();
+  </script>
+
+  <!-- Page-specific scripts -->
+  {% block extra_js %}{% endblock %}
+
 </body>
-</html> 
+</html>
