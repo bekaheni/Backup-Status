@@ -9,94 +9,159 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}?v={{ version }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-  <!-- App Bar -->
-  <header class="app-bar">
-    <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight" class="app-bar__logo">
-    <span class="app-bar__title">{% block page_title %}CoreSight{% endblock %}</span>
-
-    <!-- Desktop Nav -->
-    <nav class="app-bar__nav">
-      <a href="{{ url_for('index') }}"
-         class="nav-link{% if request.endpoint == 'index' %} active{% endif %}">Servers</a>
-      <a href="{{ url_for('nas_view') }}"
-         class="nav-link{% if request.endpoint == 'nas_view' %} active{% endif %}">NAS</a>
-      <a href="{{ url_for('configuration_page') }}"
-         class="nav-link{% if request.endpoint == 'configuration_page' %} active{% endif %}">Configuration</a>
-    </nav>
-
-    <!-- Right cluster -->
-    <div class="app-bar__right">
+  <!-- Top Header Bar -->
+  <header class="top-header">
+    <button class="btn-sidebar-toggle" id="sidebarMobileToggle" aria-label="Open menu">
+      <i class="bi bi-list"></i>
+    </button>
+    <span class="header-title">CoreSight</span>
+    <div class="header-right">
       <span class="last-fetched" id="lastFetched">Last fetched: —</span>
-
-      <!-- Fetch Now button — only shown when logged in, only on dashboard pages -->
       {% if current_user.is_authenticated %}
       <button class="btn-fetch" id="fetchBtn" title="Fetch latest emails">
-        <!-- Inline SVG refresh icon -->
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M13.65 2.35A8 8 0 1 0 15 8h-2a6 6 0 1 1-1.76-4.24L9 6h6V0l-1.35 2.35z"
-                fill="currentColor"/>
-        </svg>
+        <i class="bi bi-arrow-clockwise"></i>
       </button>
-      <span class="user-label">{{ current_user.username }}</span>
-      <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+      <span class="header-username">{{ current_user.username }}</span>
+      <a href="{{ url_for('logout') }}" class="header-logout">Logout</a>
       {% endif %}
-
-      <!-- Mobile hamburger -->
-      <button class="nav-mobile-toggle" id="mobileNavToggle" aria-label="Open menu">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
     </div>
   </header>
 
-  <!-- Mobile Nav Dropdown -->
-  <div class="nav-mobile" id="mobileNav">
-    <a href="{{ url_for('index') }}"
-       class="nav-link{% if request.endpoint == 'index' %} active{% endif %}">Servers</a>
-    <a href="{{ url_for('nas_view') }}"
-       class="nav-link{% if request.endpoint == 'nas_view' %} active{% endif %}">NAS</a>
-    <a href="{{ url_for('configuration_page') }}"
-       class="nav-link{% if request.endpoint == 'configuration_page' %} active{% endif %}">Configuration</a>
+  <!-- Mobile Overlay Backdrop -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <img src="{{ url_for('static', filename='CoreSight.png') }}" alt="CoreSight">
+      <span class="sidebar-brand-text">CoreSight</span>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('index') }}"
+         class="sidebar-nav-link{% if request.endpoint == 'index' %} active{% endif %}"
+         data-bs-toggle="tooltip" data-bs-placement="right" title="Servers">
+        <i class="bi bi-server"></i>
+        <span class="nav-label">Servers</span>
+      </a>
+      <a href="{{ url_for('nas_view') }}"
+         class="sidebar-nav-link{% if request.endpoint == 'nas_view' %} active{% endif %}"
+         data-bs-toggle="tooltip" data-bs-placement="right" title="NAS">
+        <i class="bi bi-hdd-network"></i>
+        <span class="nav-label">NAS</span>
+      </a>
+      <a href="{{ url_for('configuration_page') }}"
+         class="sidebar-nav-link{% if request.endpoint == 'configuration_page' %} active{% endif %}"
+         data-bs-toggle="tooltip" data-bs-placement="right" title="Configuration">
+        <i class="bi bi-gear-fill"></i>
+        <span class="nav-label">Configuration</span>
+      </a>
+    </nav>
+
+    {% if current_user.is_authenticated %}
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-username">{{ current_user.username }}</div>
+      <a href="{{ url_for('logout') }}" class="sidebar-footer-logout">
+        <i class="bi bi-box-arrow-right"></i>
+        <span class="nav-label">Logout</span>
+      </a>
+    </div>
+    {% endif %}
+
+  </aside>
+
+  <!-- Sidebar Collapse Tab (desktop only) -->
+  <button class="sidebar-collapse-tab" id="sidebarCollapseTab" aria-label="Collapse sidebar">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="main-inner">
+      {% block content %}{% endblock %}
+    </div>
+
+    <!-- Email Detail Modal -->
+    {% include 'modal.html' %}
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Version Badge -->
+    <div class="version-badge">v{{ version }}</div>
   </div>
 
-  <!-- Page Content -->
-  <main class="page-wrap">
-    {% block content %}{% endblock %}
-  </main>
-
-  <!-- Email Detail Modal (existing modal kept intact) -->
-  {% include 'modal.html' %}
-
-  <!-- Toast Container -->
-  <div class="toast-container" id="toastContainer"></div>
-
-  <!-- Version Badge -->
-  <div class="version-badge">v{{ version }}</div>
-
-  <!-- Bootstrap JS bundle (for modal data-bs-toggle only — no Bootstrap CSS) -->
+  <!-- Bootstrap JS bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- Mobile nav toggle script -->
-  <script>
-    (function() {
-      var toggle = document.getElementById('mobileNavToggle');
-      var nav    = document.getElementById('mobileNav');
-      if (toggle && nav) {
-        toggle.addEventListener('click', function() {
-          nav.classList.toggle('nav-mobile--open');
-        });
-      }
-    })();
-  </script>
 
   <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
 
-  <!-- Page-specific scripts -->
+  <script>
+    (function () {
+      var STORAGE_KEY  = 'coresight_sidebar_collapsed';
+      var sidebar      = document.getElementById('sidebar');
+      var overlay      = document.getElementById('sidebarOverlay');
+      var collapseTab  = document.getElementById('sidebarCollapseTab');
+      var mobileToggle = document.getElementById('sidebarMobileToggle');
+
+      function isDesktop() { return window.innerWidth >= 992; }
+
+      function updateTooltips() {
+        var els = sidebar.querySelectorAll('[data-bs-toggle="tooltip"]');
+        els.forEach(function (el) {
+          var instance = bootstrap.Tooltip.getInstance(el);
+          if (document.body.classList.contains('sidebar-collapsed') && isDesktop()) {
+            if (!instance) new bootstrap.Tooltip(el, { trigger: 'hover' });
+          } else {
+            if (instance) instance.dispose();
+          }
+        });
+      }
+
+      // Restore desktop collapse state on load
+      if (isDesktop() && localStorage.getItem(STORAGE_KEY) === '1') {
+        document.body.classList.add('sidebar-collapsed');
+      }
+
+      // Desktop collapse tab
+      if (collapseTab) {
+        collapseTab.addEventListener('click', function () {
+          document.body.classList.toggle('sidebar-collapsed');
+          localStorage.setItem(STORAGE_KEY,
+            document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+          updateTooltips();
+        });
+      }
+
+      // Mobile hamburger — slides sidebar in as overlay
+      if (mobileToggle) {
+        mobileToggle.addEventListener('click', function () {
+          sidebar.classList.toggle('sidebar--open');
+          overlay.classList.toggle('active');
+        });
+      }
+
+      // Overlay tap closes mobile sidebar
+      if (overlay) {
+        overlay.addEventListener('click', function () {
+          sidebar.classList.remove('sidebar--open');
+          overlay.classList.remove('active');
+        });
+      }
+
+      updateTooltips();
+    })();
+  </script>
+
   {% block extra_js %}{% endblock %}
 
 </body>
