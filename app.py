@@ -1,5 +1,6 @@
 import os
 import re
+import fcntl
 import json
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
@@ -500,7 +501,16 @@ def parse_email_with_ai(subject, body, html_body, email_type, email_timestamp=No
 
 
 def check_email(email_type='server'):
+    import traceback
+    mail = None
+    lock_file = None
     try:
+        lock_file = open(f'/tmp/check_email_{email_type}.lock', 'w')
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            print(f"[check_email/{email_type}] Another worker is already running this check — skipping")
+            return
         print(f"\nStarting email check for {email_type}...")
         mail = connect_to_imap(email_type)
         if not mail:
@@ -522,6 +532,7 @@ def check_email(email_type='server'):
             return
 
         with app.app_context():
+            new_count = 0
             for email_id in email_ids[-50:]:  # Process last 50 emails
                 print(f"\nProcessing message {email_id}...")
                 # Fetch the email
@@ -613,18 +624,30 @@ def check_email(email_type='server'):
                             email_type=email_type
                         )
                         db.session.add(new_status)
+                        new_count += 1
                         print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
                     else:
                         print(f"Status already exists for {s['server']}")
             
+            print(f"[check_email/{email_type}] Committing {new_count} new record(s) to database...")
             db.session.commit()
-            print("Database updated successfully")
+            print(f"[check_email/{email_type}] Commit successful — {new_count} new record(s) written")
             
     except Exception as e:
-        print(f"Error checking email: {str(e)}")
-        import traceback
+        print(f"[check_email/{email_type}] Exception: {type(e).__name__}: {str(e)}")
         print(traceback.format_exc())
+        try:
+            db.session.rollback()
+            print(f"[check_email/{email_type}] Session rolled back after error")
+        except Exception as rb_e:
+            print(f"[check_email/{email_type}] Rollback also failed: {rb_e}")
     finally:
+        if lock_file:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                lock_file.close()
+            except Exception:
+                pass
         if mail:
             try:
                 mail.close()
