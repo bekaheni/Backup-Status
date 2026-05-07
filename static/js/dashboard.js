@@ -144,6 +144,23 @@
 
   // ── Attention panel ───────────────────────────────────────────────────────
 
+  function attentionStorageKey() {
+    return 'cs-attention-collapsed-' + (typeof pageType !== 'undefined' ? pageType : 'server');
+  }
+
+  function initAttentionToggle(panel, header) {
+    if (!panel || !header) return;
+    var isCollapsed = localStorage.getItem(attentionStorageKey()) === 'true';
+    if (isCollapsed) panel.classList.add('is-collapsed');
+    else panel.classList.remove('is-collapsed');
+    header.addEventListener('click', function () {
+      var nowCollapsed = !panel.classList.contains('is-collapsed');
+      if (nowCollapsed) panel.classList.add('is-collapsed');
+      else panel.classList.remove('is-collapsed');
+      localStorage.setItem(attentionStorageKey(), nowCollapsed);
+    });
+  }
+
   function rebuildAttentionPanel(companies) {
     var failedEntries = [];
     var missingEntries = [];
@@ -159,7 +176,7 @@
       });
     });
 
-    var panel = document.querySelector('.attention-panel');
+    var panel = document.getElementById('attentionPanel') || document.querySelector('.attention-panel');
 
     if (failedEntries.length === 0 && missingEntries.length === 0) {
       if (panel) panel.style.display = 'none';
@@ -169,6 +186,7 @@
     if (!panel) {
       panel = document.createElement('div');
       panel.className = 'attention-panel';
+      panel.id = 'attentionPanel';
       var firstSection = document.querySelector('.company-section');
       if (firstSection) {
         firstSection.parentNode.insertBefore(panel, firstSection);
@@ -181,16 +199,39 @@
     panel.style.display = '';
     while (panel.firstChild) panel.removeChild(panel.firstChild);
 
+    // Header row
+    var header = document.createElement('div');
+    header.className = 'attention-panel__header';
+    header.id = 'attentionToggle';
+
     var title = document.createElement('div');
     title.className = 'attention-panel__title';
     title.textContent = 'Needs Attention';
-    panel.appendChild(title);
+
+    var countSpan = document.createElement('span');
+    countSpan.className = 'attention-count';
+    countSpan.id = 'attentionCount';
+    countSpan.textContent = '[' + (failedEntries.length + missingEntries.length) + ']';
+    title.appendChild(countSpan);
+
+    var chevron = document.createElement('span');
+    chevron.className = 'attention-chevron';
+    chevron.textContent = '›';
+
+    header.appendChild(title);
+    header.appendChild(chevron);
+    panel.appendChild(header);
+
+    // Body
+    var body = document.createElement('div');
+    body.className = 'attention-panel__body';
+    body.id = 'attentionBody';
 
     if (failedEntries.length > 0) {
       var failedHeader = document.createElement('div');
       failedHeader.className = 'attention-panel__section';
       failedHeader.textContent = 'Failed in last run';
-      panel.appendChild(failedHeader);
+      body.appendChild(failedHeader);
 
       failedEntries.forEach(function (entry) {
         var row = document.createElement('div');
@@ -206,7 +247,7 @@
         row.appendChild(document.createTextNode(
           entry.server.server_clean + ' — ' + entry.companyName
         ));
-        panel.appendChild(row);
+        body.appendChild(row);
       });
     }
 
@@ -214,7 +255,7 @@
       var missingHeader = document.createElement('div');
       missingHeader.className = 'attention-panel__section';
       missingHeader.textContent = 'Missing — expected but not received';
-      panel.appendChild(missingHeader);
+      body.appendChild(missingHeader);
 
       missingEntries.forEach(function (entry) {
         var row = document.createElement('div');
@@ -225,9 +266,12 @@
         row.appendChild(document.createTextNode(
           entry.name + ' — ' + entry.companyName
         ));
-        panel.appendChild(row);
+        body.appendChild(row);
       });
     }
+
+    panel.appendChild(body);
+    initAttentionToggle(panel, header);
   }
 
   // ── Company section rendering ─────────────────────────────────────────────
@@ -403,6 +447,12 @@
 
     // 60-second background poll
     setInterval(pollRefreshStatus, 60000);
+
+    // Attention panel collapse toggle (server-rendered panel)
+    initAttentionToggle(
+      document.getElementById('attentionPanel'),
+      document.getElementById('attentionToggle')
+    );
 
     // Fetch-now button
     var fetchBtn = document.getElementById('fetchBtn');

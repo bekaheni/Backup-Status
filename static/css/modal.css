@@ -59,23 +59,19 @@
     border: none;
     cursor: pointer;
     padding: 0.25rem;
-    color: var(--muted);
+    color: var(--text);
     font-size: 1.25rem;
     line-height: 1;
-    opacity: 0.75;
+    opacity: 0.6;
 }
 
 .btn-close:hover {
-    color: #fff;
+    color: #000;
     opacity: 1;
 }
 
 .btn-close::before {
     content: '\00d7';
-}
-
-.btn-close-white {
-    filter: invert(1);
 }
 
 .modal-body {
