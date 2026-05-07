@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1>Users</h1>
+</div>
+
+<!-- User Accounts -->
+<div class="info-panel">
+  <div class="info-panel__title">User Accounts</div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="usersTableBody">
+        {% for user in users %}
+        {% set is_self = user.id == current_user.id %}
+        <tr id="user-row-{{ user.id }}">
+          <td>{{ user.username }}</td>
+          <td>
+            {% if user.is_admin %}
+            <span class="badge badge--admin">Admin</span>
+            {% else %}
+            <span class="badge badge--user">User</span>
+            {% endif %}
+          </td>
+          <td class="actions-cell">
+            <button class="btn-icon" title="Change password"
+              data-user-id="{{ user.id }}"
+              data-username="{{ user.username }}"
+              data-action-user="change-password">
+              <i class="bi bi-key-fill"></i>
+            </button>
+            <button class="btn-icon {% if is_self %}btn-icon--muted{% endif %}"
+              title="Toggle admin"
+              data-user-id="{{ user.id }}"
+              data-username="{{ user.username }}"
+              data-action-user="toggle-admin"
+              {% if is_self %}disabled{% endif %}>
+              <i class="bi bi-shield-fill"></i>
+            </button>
+            <button class="btn-icon btn-icon--danger {% if is_self %}btn-icon--muted{% endif %}"
+              title="Delete user"
+              data-user-id="{{ user.id }}"
+              data-username="{{ user.username }}"
+              data-action-user="delete"
+              {% if is_self %}disabled{% endif %}>
+              <i class="bi bi-trash-fill"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add New User -->
+<div class="info-panel">
+  <div class="info-panel__title">Add New User</div>
+  <form id="addUserForm" style="display: flex; flex-direction: column; gap: 14px; max-width: 400px;">
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input type="text" id="newUsername" name="username" class="form-control" autocomplete="off" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="newPassword" name="password" class="form-control" autocomplete="new-password" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm Password</label>
+      <input type="password" id="confirmPassword" name="confirm_password" class="form-control" autocomplete="new-password" required>
+    </div>
+    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+      <input type="checkbox" id="grantAdmin" name="is_admin" style="width: 16px; height: 16px; cursor: pointer;">
+      <label for="grantAdmin" class="form-label" style="margin: 0; cursor: pointer;">Grant admin access</label>
+    </div>
+    <div>
+      <button type="submit" class="btn btn-primary">Add User</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/users.js') }}"></script>
+{% endblock %}

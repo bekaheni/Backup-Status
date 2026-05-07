@@ -64,6 +64,14 @@
         <i class="bi bi-gear-fill"></i>
         <span class="nav-label">Configuration</span>
       </a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <a href="{{ url_for('users_page') }}"
+         class="sidebar-nav-link{% if request.endpoint == 'users_page' %} active{% endif %}"
+         data-bs-toggle="tooltip" data-bs-placement="right" title="Users">
+        <i class="bi bi-people-fill"></i>
+        <span class="nav-label">Users</span>
+      </a>
+      {% endif %}
     </nav>
 
     {% if current_user.is_authenticated %}

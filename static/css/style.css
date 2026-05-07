@@ -555,3 +555,54 @@ body.sidebar-collapsed .main-content { margin-left: var(--sidebar-collapsed-widt
   .danger-zone__item { flex-direction: column; gap: 12px; }
   .last-fetched { display: none; }
 }
+
+/* ============================================================
+   SECTION: Users Page
+   ============================================================ */
+
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 14px;
+}
+.data-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted);
+  border-bottom: 1px solid var(--card-border);
+}
+.data-table td {
+  padding: 12px 14px; border-bottom: 1px solid var(--card-border); vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(0, 0, 0, 0.025); }
+.table-responsive { overflow-x: auto; }
+
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge--admin { background: rgba(37, 99, 235, 0.12); color: var(--accent); }
+.badge--user  { background: rgba(107, 114, 128, 0.12); color: var(--muted); }
+
+.actions-cell { display: flex; gap: 6px; align-items: center; }
+
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--radius-btn);
+  border: 1px solid var(--card-border); background: var(--card);
+  color: var(--text); cursor: pointer; font-size: 14px;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.btn-icon:hover:not(:disabled) { background: var(--bg); }
+.btn-icon--danger { color: var(--error); border-color: rgba(220, 38, 38, 0.3); }
+.btn-icon--danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.08); }
+.btn-icon--muted { opacity: 0.35; cursor: not-allowed; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label  { font-size: 13px; font-weight: 500; color: var(--text); }
+.form-control {
+  padding: 8px 12px; border-radius: var(--radius-btn);
+  border: 1px solid var(--card-border); background: var(--card);
+  font-size: 14px; font-family: inherit; color: var(--text);
+  outline: none; transition: border-color 0.15s;
+}
+.form-control:focus { border-color: var(--accent); }

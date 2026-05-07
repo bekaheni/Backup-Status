@@ -736,6 +736,110 @@ with app.app_context():
     else:
         print("Admin user already exists")
 
+# ─── User Management Routes ──────────────────────────────────────────────────
+
+@app.route('/users')
+@login_required
+def users_page():
+    if not current_user.is_admin:
+        flash('Access restricted to admin users.', 'error')
+        return redirect(url_for('index'))
+    users = User.query.order_by(User.username).all()
+    return render_template('users.html', users=users, current_user=current_user)
+
+
+@app.route('/users/add', methods=['POST'])
+@login_required
+def users_add():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'})
+    data = request.form
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+    is_admin = data.get('is_admin') == 'on'
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password are required.'})
+    if User.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'message': f'Username "{username}" already exists.'})
+
+    user = User(username=username, is_admin=is_admin)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'User "{username}" created successfully.'})
+
+
+@app.route('/users/delete', methods=['POST'])
+@login_required
+def users_delete():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'})
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+
+    if user_id == current_user.id:
+        return jsonify({'success': False, 'message': 'You cannot delete your own account.'})
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'success': False, 'message': 'User not found.'})
+
+    if user.is_admin:
+        admin_count = User.query.filter_by(is_admin=True).count()
+        if admin_count <= 1:
+            return jsonify({'success': False, 'message': 'Cannot delete the last admin user.'})
+
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'User "{user.username}" deleted.'})
+
+
+@app.route('/users/change-password', methods=['POST'])
+@login_required
+def users_change_password():
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    new_password = data.get('new_password') or ''
+
+    if not current_user.is_admin and user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'You can only change your own password.'})
+    if len(new_password) < 8:
+        return jsonify({'success': False, 'message': 'Password must be at least 8 characters.'})
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'success': False, 'message': 'User not found.'})
+
+    user.set_password(new_password)
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Password for "{user.username}" updated.'})
+
+
+@app.route('/users/toggle-admin', methods=['POST'])
+@login_required
+def users_toggle_admin():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'})
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'success': False, 'message': 'User not found.'})
+
+    if user.is_admin:
+        admin_count = User.query.filter_by(is_admin=True).count()
+        if admin_count <= 1:
+            return jsonify({'success': False, 'message': 'Cannot remove admin from the last admin user.'})
+
+    user.is_admin = not user.is_admin
+    db.session.commit()
+    role = 'admin' if user.is_admin else 'standard user'
+    return jsonify({'success': True, 'message': f'"{user.username}" is now a {role}.'})
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ─── JSON API endpoints (redesign step 2) ────────────────────────────────────
 
 _EXCLUDE_COMPANIES = {
