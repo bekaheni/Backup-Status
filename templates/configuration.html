@@ -102,6 +102,104 @@
   outline: none;
   border-color: var(--accent);
 }
+
+/* Companies section */
+.company-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.company-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.company-card__name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+.company-card__name-input {
+  flex: 1;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.company-card__name-input:focus { outline: none; }
+.company-card__body {
+  display: flex;
+  gap: 0;
+}
+.company-server-group {
+  flex: 1;
+  padding: 12px 14px;
+  border-right: 1px solid var(--border);
+}
+.company-server-group:last-child { border-right: none; }
+.company-server-group__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.server-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 24px;
+}
+.server-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text);
+}
+.server-tag__remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.server-tag__remove:hover { color: var(--error); }
+.server-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.server-add-row input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.server-add-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 </style>
 {% endblock %}
 
@@ -144,7 +242,20 @@
   </div>
 </div>
 
-<!-- Section 2: AI Parsing Settings -->
+<!-- Section 2: Companies and Expected Servers -->
+<div class="info-panel" id="companiesPanel">
+  <div class="info-panel__title">Companies and Expected Servers</div>
+
+  <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+    <input type="text" id="newCompanyInput" placeholder="New company name…"
+           style="flex: 1; min-width: 200px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
+    <button class="btn btn-primary" id="addCompanyBtn" style="white-space: nowrap;">Add Company</button>
+  </div>
+
+  <div id="companiesList"></div>
+</div>
+
+<!-- Section 3: AI Parsing Settings -->
 <div class="info-panel">
   <div class="info-panel__title">AI Parsing Settings</div>
 
@@ -181,7 +292,7 @@
   </div>
 </div>
 
-<!-- Section 3: How Email Parsing Works -->
+<!-- Section 4: How Email Parsing Works -->
 <div class="info-panel">
   <div class="info-panel__title">How Email Parsing Works</div>
 
@@ -204,7 +315,7 @@
   </div>
 </div>
 
-<!-- Section 4: Danger Zone -->
+<!-- Section 5: Danger Zone -->
 <div class="danger-zone">
   <div class="danger-zone__title">Danger Zone</div>
   <div class="danger-zone__desc">These actions are irreversible and should be used with caution.</div>
@@ -235,5 +346,6 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/companies.js') }}"></script>
 
 {% endblock %}

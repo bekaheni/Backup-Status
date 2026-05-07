@@ -142,6 +142,25 @@ class AppConfig(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    servers = db.relationship('ExpectedServer', backref='company', lazy=True, cascade='all, delete-orphan')
+
+
+class ExpectedServer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    email_type = db.Column(db.String(10), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('company_id', 'name', 'email_type', name='uq_company_server_type'),
+    )
+
+
 def get_config(key, default=None):
     config = AppConfig.query.filter_by(key=key).first()
     return config.value if config else default
@@ -156,6 +175,29 @@ def set_config(key, value):
         config = AppConfig(key=key, value=str(value))
         db.session.add(config)
     db.session.commit()
+
+
+def get_all_companies():
+    return Company.query.order_by(Company.name).all()
+
+
+def get_expected_servers_for_company(company_id, email_type):
+    return [s.name for s in ExpectedServer.query.filter_by(company_id=company_id, email_type=email_type).all()]
+
+
+def get_company_for_server(server_name, email_type):
+    server_lower = server_name.lower()
+    for es in ExpectedServer.query.filter_by(email_type=email_type).all():
+        if es.name.lower() in server_lower:
+            return es.company.name
+    return 'Other'
+
+
+def _get_expected_by_name(company_name, email_type):
+    company = Company.query.filter(db.func.lower(Company.name) == company_name.lower()).first()
+    if not company:
+        return []
+    return get_expected_servers_for_company(company.id, email_type)
 
 
 DEFAULT_SERVER_PROMPT = """This app monitors VM backup status emails from Hornetsecurity VM Backup and Altaro VM Backup software. Daily status report emails contain an HTML table listing each server with its backup result shown as a coloured Success or Failed badge.
@@ -567,8 +609,8 @@ def check_email(email_type='server'):
                             subject=subject,
                             body=body or "",
                             html_body=html_body or "",
-                            company=get_company_for_server(s['server']),
-                            email_type=email_type  # Add email_type to model
+                            company=get_company_for_server(s['server'], email_type),
+                            email_type=email_type
                         )
                         db.session.add(new_status)
                         print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
@@ -634,25 +676,24 @@ def index():
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
                 server_statuses.setdefault(company_key, []).append(statuses)
-        # Get all companies that have expected servers, not just those with data
-        from utils import EXPECTED_SERVERS
-        all_companies = sorted(set(list(server_statuses.keys()) + list(EXPECTED_SERVERS.keys())))
-        
+        # Get all companies from DB, combine with those that have data
+        all_companies = sorted(set(list(server_statuses.keys()) + [c.name for c in get_all_companies()]))
+
         # Filter out companies that should not appear on server backup page
-        companies_to_exclude = ['JSW Ltd', 'NHG Ltd', 'Bekat IT']
+        companies_to_exclude = _EXCLUDE_COMPANIES['server']
         all_companies = [company for company in all_companies if company not in companies_to_exclude]
-        
+
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
         total_servers = sum(len(servers) for servers in server_statuses.values())
-        return render_template('index.html', 
-                             server_statuses=server_statuses, 
-                             companies=all_companies, 
-                             last_update=last_update, 
+        return render_template('index.html',
+                             server_statuses=server_statuses,
+                             companies=all_companies,
+                             last_update=last_update,
                              total_servers=total_servers,
                              status_count=status_count,
-                             get_expected_servers=get_expected_servers,
+                             get_expected_servers=lambda company: _get_expected_by_name(company, 'server'),
                              clean_server_name=clean_server_name,
                              version=VERSION)
 
@@ -673,14 +714,13 @@ def nas_view():
                 # Use 'Unknown' for None company values
                 company_key = company if company else 'Unknown'
                 server_statuses.setdefault(company_key, []).append(statuses)
-        # Get all companies that have expected servers, not just those with data
-        from utils import EXPECTED_SERVERS
-        all_companies = sorted(set(list(server_statuses.keys()) + list(EXPECTED_SERVERS.keys())))
-        
+        # Get all companies from DB, combine with those that have data
+        all_companies = sorted(set(list(server_statuses.keys()) + [c.name for c in get_all_companies()]))
+
         # Filter out companies that should not appear on NAS page
-        companies_to_exclude = ['BRB Ltd', 'eHeating Ltd', 'JS Wilson Ltd']
+        companies_to_exclude = _EXCLUDE_COMPANIES['nas']
         all_companies = [company for company in all_companies if company not in companies_to_exclude]
-        
+
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
         # Count total servers
@@ -691,7 +731,7 @@ def nas_view():
                               last_update=last_update,
                               total_servers=total_servers,
                               status_count=status_count,
-                              get_expected_servers=get_expected_servers,
+                              get_expected_servers=lambda company: _get_expected_by_name(company, 'nas'),
                               clean_server_name=clean_server_name,
                               version=VERSION)
 
@@ -764,7 +804,7 @@ def update_existing_companies():
     with app.app_context():
         statuses = BackupStatus.query.all()
         for status in statuses:
-            status.company = get_company_for_server(status.server)
+            status.company = get_company_for_server(status.server, status.email_type or 'server')
         db.session.commit()
         print("Updated all records with new company information")
 
@@ -849,10 +889,10 @@ def debug_servers():
             debug_info.append(f"  Cleaned: '{clean_server_name(server)}'")
         
         debug_info.append("\n=== EXPECTED SERVERS ===")
-        for company, expected_list in get_expected_servers.__globals__['EXPECTED_SERVERS'].items():
-            debug_info.append(f"Company: '{company}'")
-            for server in expected_list:
-                debug_info.append(f"  Expected: '{server}'")
+        for company in get_all_companies():
+            debug_info.append(f"Company: '{company.name}'")
+            for es in company.servers:
+                debug_info.append(f"  Expected ({es.email_type}): '{es.name}'")
         
         return "<br>".join(debug_info)
 
@@ -907,6 +947,31 @@ with app.app_context():
         except IntegrityError:
             db.session.rollback()
     print("AppConfig defaults initialised")
+    # Seed Company and ExpectedServer tables if empty
+    if Company.query.count() == 0:
+        _seed_data = {
+            'BRB Ltd':      {'server': ['BRBD', 'BRBFAP', 'BRBExchange', 'Remote Desktop'], 'nas': []},
+            'Lochlie Ltd':  {'server': ['LochlieApp01', 'LochlieApp02', 'LochlieDC', 'LochlieRD', 'BekatApp02'], 'nas': []},
+            'eHeating Ltd': {'server': ['eHeating02', 'eHeating03', 'eHeating04', 'eHeatingACT'], 'nas': []},
+            'Caseman Ltd':  {'server': ['CaseNotesCMS', 'CaseNotesNTS', 'CasemanAPP', 'CasemanA', 'WIN10', 'CasemanDC'], 'nas': ['casemanNAS']},
+            'JS Wilson Ltd':{'server': ['Remote Desktop', 'Trimble Server'], 'nas': []},
+            'NHG Ltd':      {'server': ['NHG'], 'nas': ['NHG']},
+            'Bekat IT':     {'server': ['BekatApp01'], 'nas': []},
+            'JSW Ltd':      {'server': ['JSW'], 'nas': ['JSW']},
+        }
+        try:
+            for company_name, type_map in _seed_data.items():
+                company = Company(name=company_name)
+                db.session.add(company)
+                db.session.flush()
+                for etype, names in type_map.items():
+                    for sname in names:
+                        db.session.add(ExpectedServer(company_id=company.id, name=sname, email_type=etype))
+            db.session.commit()
+            print("Company and ExpectedServer tables seeded")
+        except IntegrityError:
+            db.session.rollback()
+            print("Company seeding skipped (already exists)")
 
 # ─── User Management Routes ──────────────────────────────────────────────────
 
@@ -1012,6 +1077,122 @@ def users_toggle_admin():
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─── Company Management Routes ────────────────────────────────────────────────
+
+@app.route('/configuration/companies')
+@login_required
+def get_companies():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Access restricted.'}), 403
+    result = []
+    for c in get_all_companies():
+        def _servers(etype):
+            return [{'id': s.id, 'name': s.name}
+                    for s in ExpectedServer.query.filter_by(company_id=c.id, email_type=etype).all()]
+        result.append({
+            'id': c.id,
+            'name': c.name,
+            'server': _servers('server'),
+            'nas': _servers('nas'),
+        })
+    return jsonify(result)
+
+
+@app.route('/configuration/companies/add', methods=['POST'])
+@login_required
+def add_company():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'}), 403
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': 'Company name is required.'})
+    if Company.query.filter(db.func.lower(Company.name) == name.lower()).first():
+        return jsonify({'success': False, 'message': f'Company "{name}" already exists.'})
+    company = Company(name=name)
+    db.session.add(company)
+    db.session.commit()
+    return jsonify({'success': True, 'id': company.id, 'name': company.name})
+
+
+@app.route('/configuration/companies/rename', methods=['POST'])
+@login_required
+def rename_company():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'}), 403
+    data = request.get_json() or {}
+    company_id = data.get('company_id')
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': 'Company name is required.'})
+    company = db.session.get(Company, company_id)
+    if not company:
+        return jsonify({'success': False, 'message': 'Company not found.'})
+    if Company.query.filter(db.func.lower(Company.name) == name.lower(), Company.id != company_id).first():
+        return jsonify({'success': False, 'message': f'Company "{name}" already exists.'})
+    company.name = name
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/configuration/companies/delete', methods=['POST'])
+@login_required
+def delete_company():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'}), 403
+    data = request.get_json() or {}
+    company_id = data.get('company_id')
+    company = db.session.get(Company, company_id)
+    if not company:
+        return jsonify({'success': False, 'message': 'Company not found.'})
+    db.session.delete(company)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/configuration/servers/add', methods=['POST'])
+@login_required
+def add_expected_server():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'}), 403
+    data = request.get_json() or {}
+    company_id = data.get('company_id')
+    name = (data.get('name') or '').strip()
+    email_type = (data.get('email_type') or '').strip()
+    if not company_id or not name or not email_type:
+        return jsonify({'success': False, 'message': 'Company, name, and type are required.'})
+    if email_type not in ('server', 'nas'):
+        return jsonify({'success': False, 'message': 'Invalid email type.'})
+    if not db.session.get(Company, company_id):
+        return jsonify({'success': False, 'message': 'Company not found.'})
+    if ExpectedServer.query.filter(
+        ExpectedServer.company_id == company_id,
+        db.func.lower(ExpectedServer.name) == name.lower(),
+        ExpectedServer.email_type == email_type
+    ).first():
+        return jsonify({'success': False, 'message': f'Server "{name}" already exists for this company and type.'})
+    server = ExpectedServer(company_id=company_id, name=name, email_type=email_type)
+    db.session.add(server)
+    db.session.commit()
+    return jsonify({'success': True, 'id': server.id})
+
+
+@app.route('/configuration/servers/delete', methods=['POST'])
+@login_required
+def delete_expected_server():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access restricted.'}), 403
+    data = request.get_json() or {}
+    server_id = data.get('server_id')
+    server = db.session.get(ExpectedServer, server_id)
+    if not server:
+        return jsonify({'success': False, 'message': 'Server not found.'})
+    db.session.delete(server)
+    db.session.commit()
+    return jsonify({'success': True})
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ─── JSON API endpoints (redesign step 2) ────────────────────────────────────
 
 _EXCLUDE_COMPANIES = {
@@ -1063,8 +1244,6 @@ def _server_present(expected, records):
 
 def _build_status_summary():
     """Shared JSON payload for /api/refresh-status and /api/refresh."""
-    from utils import EXPECTED_SERVERS
-
     latest = BackupStatus.query.order_by(BackupStatus.timestamp.desc()).first()
     last_fetched = latest.timestamp.isoformat() if latest else None
 
@@ -1079,10 +1258,11 @@ def _build_status_summary():
 
         excluded = _EXCLUDE_COMPANIES[email_type]
         missing = 0
-        for company, expected_list in EXPECTED_SERVERS.items():
-            if company in excluded:
+        for company in get_all_companies():
+            if company.name in excluded:
                 continue
-            company_records = [r for r in records if r.company == company]
+            expected_list = get_expected_servers_for_company(company.id, email_type)
+            company_records = [r for r in records if r.company == company.name]
             missing += sum(
                 1 for e in expected_list if not _server_present(e, company_records)
             )
@@ -1122,8 +1302,6 @@ def api_refresh():
 @app.route('/api/servers')
 @login_required
 def api_servers():
-    from utils import EXPECTED_SERVERS
-
     email_type = request.args.get('type', 'server')
     status_filter = request.args.get('status')
     q = request.args.get('q', '').strip().lower()
@@ -1148,7 +1326,8 @@ def api_servers():
             continue
         by_company.setdefault(company, []).append(record)
 
-    visible_expected = {c for c in EXPECTED_SERVERS if c not in excluded}
+    all_db_companies = get_all_companies()
+    visible_expected = {c.name for c in all_db_companies if c.name not in excluded}
     all_companies = sorted(set(list(by_company.keys()) + list(visible_expected)))
 
     companies_out = []
@@ -1170,7 +1349,7 @@ def api_servers():
 
         company_all_records = [r for r in all_records if r.company == company]
         missing_servers = [
-            e for e in EXPECTED_SERVERS.get(company, [])
+            e for e in _get_expected_by_name(company, email_type)
             if not _server_present(e, company_all_records)
         ]
 
