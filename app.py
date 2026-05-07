@@ -989,6 +989,20 @@ with app.app_context():
             db.session.rollback()
             print("Company seeding skipped (already exists)")
 
+    # Unconditional startup task: reassign any BackupStatus records still set
+    # to 'Other' or None that can now be matched against the ExpectedServer table.
+    reassigned = 0
+    for status in BackupStatus.query.filter(
+        db.or_(BackupStatus.company == 'Other', BackupStatus.company == None)
+    ).all():
+        new_company = get_company_for_server(status.server, status.email_type or 'server')
+        if new_company != 'Other':
+            status.company = new_company
+            reassigned += 1
+    if reassigned:
+        db.session.commit()
+    print(f"Startup reassignment: {reassigned} BackupStatus record(s) updated from 'Other'/None to correct company")
+
 # ─── User Management Routes ──────────────────────────────────────────────────
 
 @app.route('/users')
