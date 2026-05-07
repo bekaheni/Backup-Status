@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -131,6 +132,55 @@ class BackupStatus(db.Model):
     company = db.Column(db.String(100))
     email_type = db.Column(db.String(50), nullable=True)  # Add email_type field
     cleared_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+
+class AppConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def get_config(key, default=None):
+    config = AppConfig.query.filter_by(key=key).first()
+    return config.value if config else default
+
+
+def set_config(key, value):
+    config = AppConfig.query.filter_by(key=key).first()
+    if config:
+        config.value = str(value)
+        config.updated_at = datetime.utcnow()
+    else:
+        config = AppConfig(key=key, value=str(value))
+        db.session.add(config)
+    db.session.commit()
+
+
+DEFAULT_SERVER_PROMPT = """This app monitors VM backup status emails from Hornetsecurity VM Backup and Altaro VM Backup software. Daily status report emails contain an HTML table listing each server with its backup result shown as a coloured Success or Failed badge.
+
+Extract every server row from the table. For each row return:
+- server_name: the server name without the ID in brackets (e.g. "MYSERVER" not "MYSERVER (ABC123)")
+- status: "successful" if the backup succeeded, "unsuccessful" if it failed or is overdue
+- timestamp_str: the date and time string exactly as it appears in the Backup column, or null if not found
+
+Return an empty list for monthly summaries, licence warnings, software update emails, marketing emails, or any email that does not report individual daily backup results per server.
+
+Return JSON only with no other text. Example:
+[{"server_name": "MYSERVER", "status": "successful", "timestamp_str": "15 Mar 2024 14:30"}]"""
+
+DEFAULT_NAS_PROMPT = """This app monitors NAS backup status emails. NAS backup emails typically report a single device per email with the device name in the subject line.
+
+Extract the backup result. Return:
+- server_name: the device or NAS name, typically found in the subject line after "on"
+- status: "successful" if the backup succeeded, "unsuccessful" if it failed
+- timestamp_str: the start time or completion time as it appears in the email, or null if not found
+
+Return an empty list for any email that is not a NAS device backup status report (e.g. marketing, licence warnings, monthly summaries).
+
+Return JSON only with no other text. Example:
+[{"server_name": "MYNAS", "status": "successful", "timestamp_str": "Mon, Jan 15 2024 14:30:00"}]"""
+
 
 def connect_to_imap(email_type='server'):
     try:
@@ -318,6 +368,94 @@ def parse_nas_backup_status(body, subject=None):
     print(f"Parsed NAS status: {result[0]}")
     return result
 
+
+def parse_email_with_ai(subject, body, html_body, email_type, email_timestamp=None):
+    """Parse backup email using Claude AI, falling back to regex parser on failure."""
+    try:
+        import anthropic
+
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set")
+
+        ai_enabled = get_config('ai_parsing_enabled', 'true')
+        if ai_enabled and ai_enabled.lower() != 'true':
+            raise ValueError("AI parsing disabled in config")
+
+        prompt_key = 'ai_prompt_server' if email_type == 'server' else 'ai_prompt_nas'
+        system_prompt = get_config(prompt_key, DEFAULT_SERVER_PROMPT if email_type == 'server' else DEFAULT_NAS_PROMPT)
+
+        cleaned_body = body
+        if not cleaned_body and html_body:
+            soup = BeautifulSoup(html_body, 'html.parser')
+            cleaned_body = soup.get_text(separator='\n')
+
+        user_message = f"Subject: {subject}\n\nEmail body:\n{cleaned_body}"
+
+        print(f"Calling Claude AI for {email_type} email parsing...")
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}]
+        )
+
+        raw = response.content[0].text.strip()
+        print(f"AI parser raw response (first 300 chars): {raw[:300]}")
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group(0))
+            else:
+                print(f"AI parser: could not extract JSON from response: {raw[:500]}")
+                raise ValueError("No JSON array found in AI response")
+
+        timestamp_formats = [
+            "%d %b %Y %H:%M",
+            "%a, %b %d %Y %H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S",
+            "%d/%m/%Y %H:%M",
+            "%m/%d/%Y %H:%M",
+            "%d-%b-%Y %H:%M",
+        ]
+
+        results = []
+        for item in parsed:
+            server_name = (item.get('server_name') or 'Unknown').strip()
+            status_str = (item.get('status') or 'unsuccessful').lower()
+            status = 'successful' if status_str == 'successful' else 'unsuccessful'
+            timestamp_str = item.get('timestamp_str')
+
+            timestamp = None
+            if timestamp_str:
+                for fmt in timestamp_formats:
+                    try:
+                        timestamp = datetime.strptime(timestamp_str.strip(), fmt)
+                        break
+                    except ValueError:
+                        continue
+
+            if not timestamp:
+                timestamp = email_timestamp or datetime.now()
+
+            results.append({'server': server_name, 'status': status, 'timestamp': timestamp})
+
+        print(f"AI parser extracted {len(results)} result(s)")
+        return results
+
+    except Exception as e:
+        print(f"AI parsing failed ({type(e).__name__}: {e}), falling back to regex parser")
+        if email_type == 'nas':
+            return parse_nas_backup_status(body, subject)
+        else:
+            return parse_backup_status(body, email_timestamp)
+
+
 def check_email(email_type='server'):
     try:
         print(f"\nStarting email check for {email_type}...")
@@ -407,11 +545,8 @@ def check_email(email_type='server'):
                 print(f"Email subject: {subject}")
                 print(f"Email body snippet: {body[:300]}\n{'-'*40}")
                 
-                # Parse for server statuses using the appropriate parser
-                if email_type == 'nas':
-                    statuses = parse_nas_backup_status(body, subject)
-                else:
-                    statuses = parse_backup_status(body, email_timestamp)
+                # Parse for server statuses using AI parser (with regex fallback)
+                statuses = parse_email_with_ai(subject, body, html_body, email_type, email_timestamp)
                 print(f"Found {len(statuses)} backup statuses in email")
                 
                 for s in statuses:
@@ -640,17 +775,29 @@ def init_db():
         db.create_all()
         print("Database initialized")
 
+_scheduler = None
+
+
 def start_background_jobs():
-    # Initialize scheduler with both email types
-    scheduler = BackgroundScheduler()
-    # Add immediate jobs for both email types
-    scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
-    scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
-    # Add recurring jobs for both email types
-    scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=5)
-    scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=5)
-    scheduler.start()
-    print("Scheduler started - checking both email accounts immediately and then every 5 minutes")
+    global _scheduler
+    with app.app_context():
+        interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+
+    _scheduler = BackgroundScheduler()
+    _scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
+    _scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
+    _scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=interval, id='server_check')
+    _scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=interval, id='nas_check')
+    _scheduler.start()
+    print(f"Scheduler started — checking both email accounts immediately and then every {interval} minute(s)")
+
+
+def reschedule(interval_minutes):
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        _scheduler.reschedule_job('server_check', trigger='interval', minutes=interval_minutes)
+        _scheduler.reschedule_job('nas_check', trigger='interval', minutes=interval_minutes)
+        print(f"Scheduler updated to every {interval_minutes} minute(s)")
 
 @app.route('/parsing-logic')
 def parsing_logic():
@@ -661,16 +808,26 @@ def template_page():
     return redirect(url_for('configuration_page'))
 
 @app.route('/configuration')
+@login_required
 def configuration_page():
-    from flask_login import current_user
     server_inbox = os.getenv('EMAIL', 'not set')
     nas_inbox = os.getenv('NAS_EMAIL', 'not set')
     imap_server = os.getenv('IMAP_SERVER', 'not set')
     nas_imap_server = os.getenv('NAS_IMAP_SERVER', 'not set')
-    scheduler_interval = 'Every 5 minutes'
-    return render_template('configuration.html', current_user=current_user, server_inbox=server_inbox,
-                           nas_inbox=nas_inbox, imap_server=imap_server,
-                           nas_imap_server=nas_imap_server, scheduler_interval=scheduler_interval)
+    scheduler_interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+    ai_parsing_enabled = (get_config('ai_parsing_enabled', 'true') or 'true').lower() == 'true'
+    ai_prompt_server = get_config('ai_prompt_server', DEFAULT_SERVER_PROMPT)
+    ai_prompt_nas = get_config('ai_prompt_nas', DEFAULT_NAS_PROMPT)
+    return render_template('configuration.html',
+                           server_inbox=server_inbox,
+                           nas_inbox=nas_inbox,
+                           imap_server=imap_server,
+                           nas_imap_server=nas_imap_server,
+                           scheduler_interval=scheduler_interval,
+                           ai_parsing_enabled=ai_parsing_enabled,
+                           ai_prompt_server=ai_prompt_server,
+                           ai_prompt_nas=ai_prompt_nas,
+                           version=VERSION)
 
 @app.route('/test-route')
 def test_route():
@@ -735,6 +892,18 @@ with app.app_context():
         print("Admin user created")
     else:
         print("Admin user already exists")
+    # Seed default AppConfig values if not already present
+    defaults = {
+        'ai_prompt_server': DEFAULT_SERVER_PROMPT,
+        'ai_prompt_nas': DEFAULT_NAS_PROMPT,
+        'scheduler_interval_minutes': '5',
+        'ai_parsing_enabled': 'true',
+    }
+    for key, value in defaults.items():
+        if not AppConfig.query.filter_by(key=key).first():
+            db.session.add(AppConfig(key=key, value=value))
+    db.session.commit()
+    print("AppConfig defaults initialised")
 
 # ─── User Management Routes ──────────────────────────────────────────────────
 
@@ -923,10 +1092,13 @@ def _build_status_summary():
         }
         total_servers += total
 
+    scheduler_interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+
     return {
         'last_fetched': last_fetched,
         'total_servers': total_servers,
         'breakdown': breakdown,
+        'scheduler_interval_minutes': scheduler_interval,
     }
 
 
@@ -1012,6 +1184,59 @@ def api_servers():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/configuration/save-settings', methods=['POST'])
+@login_required
+def save_settings():
+    data = request.get_json() or {}
+    interval = data.get('scheduler_interval_minutes')
+    ai_enabled = data.get('ai_parsing_enabled')
+
+    if interval is not None:
+        try:
+            interval = int(interval)
+            if not 1 <= interval <= 60:
+                return jsonify({'success': False, 'message': 'Interval must be between 1 and 60 minutes'})
+            set_config('scheduler_interval_minutes', str(interval))
+            reschedule(interval)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Invalid interval value'})
+
+    if ai_enabled is not None:
+        set_config('ai_parsing_enabled', 'true' if ai_enabled else 'false')
+
+    return jsonify({'success': True, 'message': 'Settings saved successfully'})
+
+
+@app.route('/configuration/save-prompt', methods=['POST'])
+@login_required
+def save_prompt():
+    data = request.get_json() or {}
+    email_type = data.get('email_type', '').strip()
+    prompt = data.get('prompt', '').strip()
+
+    if not email_type or not prompt:
+        return jsonify({'success': False, 'message': 'Email type and prompt are required'})
+    if email_type not in ('server', 'nas'):
+        return jsonify({'success': False, 'message': 'Invalid email type'})
+
+    set_config(f'ai_prompt_{email_type}', prompt)
+    return jsonify({'success': True, 'message': 'Prompt saved successfully'})
+
+
+@app.route('/configuration/reset-prompt', methods=['POST'])
+@login_required
+def reset_prompt():
+    data = request.get_json() or {}
+    email_type = data.get('email_type', '').strip()
+
+    if not email_type or email_type not in ('server', 'nas'):
+        return jsonify({'success': False, 'message': 'Invalid email type'})
+
+    default = DEFAULT_SERVER_PROMPT if email_type == 'server' else DEFAULT_NAS_PROMPT
+    set_config(f'ai_prompt_{email_type}', default)
+    return jsonify({'success': True, 'message': 'Prompt reset to default', 'prompt': default})
+
 
 # Configure session handling
 @app.teardown_appcontext
