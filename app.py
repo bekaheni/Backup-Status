@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.exc import IntegrityError
 from utils import SERVER_COMPANIES, get_company_for_server, get_expected_servers
 
 def clean_server_name(server_name):
@@ -900,9 +901,11 @@ with app.app_context():
         'ai_parsing_enabled': 'true',
     }
     for key, value in defaults.items():
-        if not AppConfig.query.filter_by(key=key).first():
+        try:
             db.session.add(AppConfig(key=key, value=value))
-    db.session.commit()
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
     print("AppConfig defaults initialised")
 
 # ─── User Management Routes ──────────────────────────────────────────────────
