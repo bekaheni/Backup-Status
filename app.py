@@ -947,8 +947,10 @@ with app.app_context():
         except IntegrityError:
             db.session.rollback()
     print("AppConfig defaults initialised")
-    # Seed Company and ExpectedServer tables if empty
-    if Company.query.count() == 0:
+    # Seed Company and ExpectedServer tables if ExpectedServer table is empty.
+    # Guard on ExpectedServer (not Company) so that if all servers are deleted
+    # via the config page the defaults are restored on next startup.
+    if ExpectedServer.query.count() == 0:
         _seed_data = {
             'BRB Ltd':      {'server': ['BRBD', 'BRBFAP', 'BRBExchange', 'Remote Desktop'], 'nas': []},
             'Lochlie Ltd':  {'server': ['LochlieApp01', 'LochlieApp02', 'LochlieDC', 'LochlieRD', 'BekatApp02'], 'nas': []},
@@ -961,14 +963,28 @@ with app.app_context():
         }
         try:
             for company_name, type_map in _seed_data.items():
-                company = Company(name=company_name)
-                db.session.add(company)
-                db.session.flush()
+                company = Company.query.filter(
+                    db.func.lower(Company.name) == company_name.lower()
+                ).first()
+                if not company:
+                    company = Company(name=company_name)
+                    db.session.add(company)
+                    db.session.flush()
                 for etype, names in type_map.items():
                     for sname in names:
                         db.session.add(ExpectedServer(company_id=company.id, name=sname, email_type=etype))
             db.session.commit()
             print("Company and ExpectedServer tables seeded")
+            # Re-assign any BackupStatus records stuck as 'Other' that can now be matched
+            reassigned = 0
+            for status in BackupStatus.query.filter_by(company='Other').all():
+                new_company = get_company_for_server(status.server, status.email_type or 'server')
+                if new_company != 'Other':
+                    status.company = new_company
+                    reassigned += 1
+            if reassigned:
+                db.session.commit()
+                print(f"Re-assigned {reassigned} BackupStatus records from 'Other' to correct companies")
         except IntegrityError:
             db.session.rollback()
             print("Company seeding skipped (already exists)")
