@@ -104,7 +104,7 @@
     var editBtn = document.createElement('button');
     editBtn.className = 'btn-icon';
     editBtn.title = 'Rename';
-    editBtn.innerHTML = '<i class="fas fa-pencil-alt" style="font-size:12px;"></i>';
+    editBtn.innerHTML = '<i class="bi bi-pencil" style="font-size:12px;"></i>';
     (function (co, hdr, ns, eb) {
       editBtn.addEventListener('click', function () {
         startRename(hdr, ns, eb, co);
@@ -115,7 +115,7 @@
     var delBtn = document.createElement('button');
     delBtn.className = 'btn-icon btn-icon--danger';
     delBtn.title = 'Delete company';
-    delBtn.innerHTML = '<i class="fas fa-trash" style="font-size:12px;"></i>';
+    delBtn.innerHTML = '<i class="bi bi-trash" style="font-size:12px;"></i>';
     (function (co) {
       delBtn.addEventListener('click', function () { confirmDeleteCompany(co); });
     }(company));
@@ -165,13 +165,13 @@
     var saveBtn = document.createElement('button');
     saveBtn.className = 'btn-icon';
     saveBtn.title = 'Save';
-    saveBtn.innerHTML = '<i class="fas fa-check" style="font-size:12px; color: var(--accent);"></i>';
+    saveBtn.innerHTML = '<i class="bi bi-check-lg" style="font-size:12px; color: var(--accent);"></i>';
     header.replaceChild(editBtn, editBtn);
 
     var cancelBtn = document.createElement('button');
     cancelBtn.className = 'btn-icon';
     cancelBtn.title = 'Cancel';
-    cancelBtn.innerHTML = '<i class="fas fa-times" style="font-size:12px;"></i>';
+    cancelBtn.innerHTML = '<i class="bi bi-x" style="font-size:12px;"></i>';
 
     // Replace edit button with save + cancel
     header.replaceChild(saveBtn, editBtn);
