@@ -717,9 +717,9 @@ def logout():
 @login_required
 def index():
     with app.app_context():
-        # Get the number of statuses to show from query parameter, default to 2
-        status_count = request.args.get('status_count', 2, type=int)
-        
+        # Get the number of statuses to show from query parameter, default to 1
+        status_count = request.args.get('status_count', 1, type=int)
+
         # Get all servers for server backups
         servers = db.session.query(BackupStatus.server, BackupStatus.company).filter_by(email_type='server').distinct().all()
         # For each server, get the specified number of statuses
@@ -755,9 +755,9 @@ def index():
 @login_required
 def nas_view():
     with app.app_context():
-        # Get the number of statuses to show from query parameter, default to 2
-        status_count = request.args.get('status_count', 2, type=int)
-        
+        # Get the number of statuses to show from query parameter, default to 1
+        status_count = request.args.get('status_count', 1, type=int)
+
         # Get all servers for NAS backups
         servers = db.session.query(BackupStatus.server, BackupStatus.company).filter_by(email_type='nas').distinct().all()
         # For each server, get the specified number of statuses
