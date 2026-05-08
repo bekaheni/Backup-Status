@@ -840,10 +840,23 @@ def init_db():
         print("Database initialized")
 
 _scheduler = None
+_scheduler_lock_file = None  # held open for process lifetime to prevent duplicate schedulers
 
 
 def start_background_jobs():
-    global _scheduler
+    global _scheduler, _scheduler_lock_file
+    try:
+        _scheduler_lock_file = open('/tmp/scheduler.lock', 'w')
+        fcntl.flock(_scheduler_lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (IOError, OSError):
+        print("[scheduler] Another worker already holds the scheduler lock — skipping duplicate start")
+        try:
+            _scheduler_lock_file.close()
+        except Exception:
+            pass
+        _scheduler_lock_file = None
+        return
+
     with app.app_context():
         interval = int(get_config('scheduler_interval_minutes', '5') or '5')
 
@@ -1482,7 +1495,8 @@ def shutdown_session(exception=None):
     db.session.close()
 
 
+start_background_jobs()
+
 if __name__ == '__main__':
-    start_background_jobs()
     update_existing_companies()  # TEMP: update company names in DB after mapping change
     app.run(host='0.0.0.0', port=5000, debug=False)
