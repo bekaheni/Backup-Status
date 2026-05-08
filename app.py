@@ -707,9 +707,9 @@ def index():
         # Get all companies from DB, combine with those that have data
         all_companies = sorted(set(list(server_statuses.keys()) + [c.name for c in get_all_companies()]))
 
-        # Filter out companies that should not appear on server backup page
-        companies_to_exclude = _EXCLUDE_COMPANIES['server']
-        all_companies = [company for company in all_companies if company not in companies_to_exclude]
+        # Only show companies that have at least one server-type ExpectedServer entry
+        companies_with_servers = _company_names_with_type('server')
+        all_companies = [c for c in all_companies if c in companies_with_servers or c == 'Other']
 
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -745,9 +745,9 @@ def nas_view():
         # Get all companies from DB, combine with those that have data
         all_companies = sorted(set(list(server_statuses.keys()) + [c.name for c in get_all_companies()]))
 
-        # Filter out companies that should not appear on NAS page
-        companies_to_exclude = _EXCLUDE_COMPANIES['nas']
-        all_companies = [company for company in all_companies if company not in companies_to_exclude]
+        # Only show companies that have at least one NAS-type ExpectedServer entry
+        companies_with_nas = _company_names_with_type('nas')
+        all_companies = [c for c in all_companies if c in companies_with_nas or c == 'Other']
 
         # Get the latest update time
         last_update = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -1267,10 +1267,14 @@ def delete_expected_server():
 
 # ─── JSON API endpoints (redesign step 2) ────────────────────────────────────
 
-_EXCLUDE_COMPANIES = {
-    'server': {'JSW Ltd', 'NHG Ltd', 'Bekat IT'},
-    'nas':    {'BRB Ltd', 'eHeating Ltd', 'JS Wilson Ltd'},
-}
+def _company_names_with_type(email_type):
+    """Return names of companies that have at least one ExpectedServer of the given type."""
+    rows = (db.session.query(Company.name)
+            .join(ExpectedServer, ExpectedServer.company_id == Company.id)
+            .filter(ExpectedServer.email_type == email_type)
+            .distinct()
+            .all())
+    return {row[0] for row in rows}
 
 
 def _relative_time(dt):
@@ -1328,12 +1332,11 @@ def _build_status_summary():
         successful = sum(1 for r in records if r.status == 'successful')
         unsuccessful = total - successful
 
-        excluded = _EXCLUDE_COMPANIES[email_type]
         missing = 0
         for company in get_all_companies():
-            if company.name in excluded:
-                continue
             expected_list = get_expected_servers_for_company(company.id, email_type)
+            if not expected_list:
+                continue
             company_records = [r for r in records if r.company == company.name]
             missing += sum(
                 1 for e in expected_list if not _server_present(e, company_records)
@@ -1378,7 +1381,7 @@ def api_servers():
     status_filter = request.args.get('status')
     q = request.args.get('q', '').strip().lower()
 
-    excluded = _EXCLUDE_COMPANIES.get(email_type, set())
+    companies_with_type = _company_names_with_type(email_type)
 
     all_records = _latest_per_server(email_type)
 
@@ -1394,12 +1397,11 @@ def api_servers():
     by_company = {}
     for record in display_records:
         company = record.company or 'Unknown'
-        if company in excluded:
+        if company not in companies_with_type and company != 'Other':
             continue
         by_company.setdefault(company, []).append(record)
 
-    all_db_companies = get_all_companies()
-    visible_expected = {c.name for c in all_db_companies if c.name not in excluded}
+    visible_expected = companies_with_type
     all_companies = sorted(set(list(by_company.keys()) + list(visible_expected)))
 
     companies_out = []
