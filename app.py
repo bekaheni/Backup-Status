@@ -874,29 +874,10 @@ _scheduler = None
 _scheduler_lock_file = None  # held open for process lifetime to prevent duplicate schedulers
 
 
-def _cleanup_stale_scheduler_lock(lock_path):
-    """Remove lock_path if the PID recorded inside it is no longer running."""
-    try:
-        with open(lock_path, 'r') as f:
-            raw = f.read().strip()
-        pid = int(raw)
-        os.kill(pid, 0)  # raises OSError if process is gone
-    except (OSError, ValueError):
-        # process is dead, PID unreadable, or file unreadable — stale lock
-        try:
-            os.remove(lock_path)
-            print(f"[scheduler] Removed stale lock file {lock_path}")
-        except OSError:
-            pass
-
-
 def start_background_jobs():
     global _scheduler, _scheduler_lock_file
-    lock_path = '/tmp/scheduler.lock'
-    if os.path.exists(lock_path):
-        _cleanup_stale_scheduler_lock(lock_path)
     try:
-        _scheduler_lock_file = open(lock_path, 'w')
+        _scheduler_lock_file = open('/tmp/scheduler.lock', 'w')
         fcntl.flock(_scheduler_lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except (IOError, OSError):
         print("[scheduler] Another worker already holds the scheduler lock — skipping duplicate start")
@@ -906,8 +887,6 @@ def start_background_jobs():
             pass
         _scheduler_lock_file = None
         return
-    _scheduler_lock_file.write(str(os.getpid()))
-    _scheduler_lock_file.flush()
 
     with app.app_context():
         schedule_type = get_config('schedule_type', 'daily') or 'daily'
