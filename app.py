@@ -68,6 +68,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
+    'connect_args': {'timeout': 30},
 }
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')  # Change this in production
 
@@ -532,115 +533,119 @@ def check_email(email_type='server'):
             return
 
         with app.app_context():
-            new_count = 0
-            for email_id in email_ids[-50:]:  # Process last 50 emails
-                print(f"\nProcessing message {email_id}...")
-                # Fetch the email
-                _, msg_data = mail.fetch(email_id, '(RFC822)')
-                email_body = msg_data[0][1]
-                email_message = email.message_from_bytes(email_body)
-                
-                # Get subject and date
-                subject = decode_header(email_message["subject"])[0][0]
-                if isinstance(subject, bytes):
-                    subject = subject.decode()
-                date_header = email_message["date"]
-                print(f"Subject: {subject}")
-                print(f"Date: {date_header}")
-                
-                # Parse the email timestamp
-                if date_header:
-                    try:
-                        from email.utils import parsedate_to_datetime
-                        email_timestamp = parsedate_to_datetime(date_header)
-                    except Exception as e:
-                        print(f"Error parsing date '{date_header}': {str(e)}")
-                        email_timestamp = datetime.now()
-                else:
-                    email_timestamp = datetime.now()
-                
-                # Get message body
-                body = ""
-                html_body = ""
-                
-                if email_message.is_multipart():
-                    for part in email_message.walk():
-                        content_type = part.get_content_type()
-                        content_disposition = str(part.get("Content-Disposition"))
-                        
-                        if "attachment" not in content_disposition:
-                            if content_type == "text/plain":
-                                try:
-                                    body = part.get_payload(decode=True).decode()
-                                except:
-                                    body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                            elif content_type == "text/html":
-                                try:
-                                    html_body = part.get_payload(decode=True).decode()
-                                except:
-                                    html_body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                else:
-                    try:
-                        body = email_message.get_payload(decode=True).decode()
-                    except:
-                        body = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
-                
-                # If no plain text, try HTML
-                if not body and html_body:
-                    print("No plain text body found, using HTML body.")
-                    soup = BeautifulSoup(html_body, 'html.parser')
-                    body = soup.get_text(separator='\n')
-                
-                if not body:
-                    print("No email body found, skipping...")
-                    continue
-                
-                # Print the subject and a snippet of the body for each email
-                print(f"Email subject: {subject}")
-                print(f"Email body snippet: {body[:300]}\n{'-'*40}")
-                
-                # Parse for server statuses using AI parser (with regex fallback)
-                statuses = parse_email_with_ai(subject, body, html_body, email_type, email_timestamp)
-                print(f"Found {len(statuses)} backup statuses in email")
-                
-                for s in statuses:
-                    # Only add if this is the latest for this server
-                    existing = BackupStatus.query.filter_by(
-                        server=s['server'],
-                        timestamp=s['timestamp'],
-                        email_type=email_type  # Add email_type to filter
-                    ).first()
-                    
-                    if not existing:
-                        print(f"Adding new status for {s['server']}")
-                        new_status = BackupStatus(
-                            server=s['server'],
-                            status=s['status'],
-                            timestamp=s['timestamp'],
-                            subject=subject,
-                            body=body or "",
-                            html_body=html_body or "",
-                            company=get_company_for_server(s['server'], email_type),
-                            email_type=email_type
-                        )
-                        db.session.add(new_status)
-                        new_count += 1
-                        print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
+            try:
+                new_count = 0
+                for email_id in email_ids[-50:]:  # Process last 50 emails
+                    print(f"\nProcessing message {email_id}...")
+                    # Fetch the email
+                    _, msg_data = mail.fetch(email_id, '(RFC822)')
+                    email_body = msg_data[0][1]
+                    email_message = email.message_from_bytes(email_body)
+
+                    # Get subject and date
+                    subject = decode_header(email_message["subject"])[0][0]
+                    if isinstance(subject, bytes):
+                        subject = subject.decode()
+                    date_header = email_message["date"]
+                    print(f"Subject: {subject}")
+                    print(f"Date: {date_header}")
+
+                    # Parse the email timestamp
+                    if date_header:
+                        try:
+                            from email.utils import parsedate_to_datetime
+                            email_timestamp = parsedate_to_datetime(date_header)
+                        except Exception as e:
+                            print(f"Error parsing date '{date_header}': {str(e)}")
+                            email_timestamp = datetime.now()
                     else:
-                        print(f"Status already exists for {s['server']}")
-            
-            print(f"[check_email/{email_type}] Committing {new_count} new record(s) to database...")
-            db.session.commit()
-            print(f"[check_email/{email_type}] Commit successful — {new_count} new record(s) written")
-            
+                        email_timestamp = datetime.now()
+
+                    # Get message body
+                    body = ""
+                    html_body = ""
+
+                    if email_message.is_multipart():
+                        for part in email_message.walk():
+                            content_type = part.get_content_type()
+                            content_disposition = str(part.get("Content-Disposition"))
+
+                            if "attachment" not in content_disposition:
+                                if content_type == "text/plain":
+                                    try:
+                                        body = part.get_payload(decode=True).decode()
+                                    except:
+                                        body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                elif content_type == "text/html":
+                                    try:
+                                        html_body = part.get_payload(decode=True).decode()
+                                    except:
+                                        html_body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                    else:
+                        try:
+                            body = email_message.get_payload(decode=True).decode()
+                        except:
+                            body = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
+
+                    # If no plain text, try HTML
+                    if not body and html_body:
+                        print("No plain text body found, using HTML body.")
+                        soup = BeautifulSoup(html_body, 'html.parser')
+                        body = soup.get_text(separator='\n')
+
+                    if not body:
+                        print("No email body found, skipping...")
+                        continue
+
+                    # Print the subject and a snippet of the body for each email
+                    print(f"Email subject: {subject}")
+                    print(f"Email body snippet: {body[:300]}\n{'-'*40}")
+
+                    # Parse for server statuses using AI parser (with regex fallback)
+                    statuses = parse_email_with_ai(subject, body, html_body, email_type, email_timestamp)
+                    print(f"Found {len(statuses)} backup statuses in email")
+
+                    for s in statuses:
+                        # Only add if this is the latest for this server
+                        existing = BackupStatus.query.filter_by(
+                            server=s['server'],
+                            timestamp=s['timestamp'],
+                            email_type=email_type  # Add email_type to filter
+                        ).first()
+
+                        if not existing:
+                            print(f"Adding new status for {s['server']}")
+                            new_status = BackupStatus(
+                                server=s['server'],
+                                status=s['status'],
+                                timestamp=s['timestamp'],
+                                subject=subject,
+                                body=body or "",
+                                html_body=html_body or "",
+                                company=get_company_for_server(s['server'], email_type),
+                                email_type=email_type
+                            )
+                            db.session.add(new_status)
+                            new_count += 1
+                            print(f"Added status: Server={s['server']}, Status={s['status']}, Time={s['timestamp']}")
+                        else:
+                            print(f"Status already exists for {s['server']}")
+
+                print(f"[check_email/{email_type}] Committing {new_count} new record(s) to database...")
+                db.session.commit()
+                print(f"[check_email/{email_type}] Commit successful — {new_count} new record(s) written")
+            except Exception as e:
+                print(f"[check_email/{email_type}] Exception: {type(e).__name__}: {str(e)}")
+                print(traceback.format_exc())
+                try:
+                    db.session.rollback()
+                    print(f"[check_email/{email_type}] Session rolled back after error")
+                except Exception as rb_e:
+                    print(f"[check_email/{email_type}] Rollback also failed: {rb_e}")
+
     except Exception as e:
         print(f"[check_email/{email_type}] Exception: {type(e).__name__}: {str(e)}")
         print(traceback.format_exc())
-        try:
-            db.session.rollback()
-            print(f"[check_email/{email_type}] Session rolled back after error")
-        except Exception as rb_e:
-            print(f"[check_email/{email_type}] Rollback also failed: {rb_e}")
     finally:
         if lock_file:
             try:
@@ -862,9 +867,10 @@ def start_background_jobs():
 
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
-    _scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now())
+    _scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now() + timedelta(seconds=10))
     _scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=interval, id='server_check')
-    _scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=interval, id='nas_check')
+    _scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=interval, id='nas_check',
+                       start_date=datetime.now() + timedelta(seconds=30))
     _scheduler.start()
     print(f"Scheduler started — checking both email accounts immediately and then every {interval} minute(s)")
 
