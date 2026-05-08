@@ -889,24 +889,68 @@ def start_background_jobs():
         return
 
     with app.app_context():
-        interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+        schedule_type = get_config('schedule_type', 'daily') or 'daily'
+        schedule_time_str = get_config('schedule_time', '08:00') or '08:00'
+        interval = int(get_config('schedule_interval_minutes', '60') or '60')
 
     _scheduler = BackgroundScheduler()
-    _scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
-    _scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now() + timedelta(seconds=10))
-    _scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=interval, id='server_check')
-    _scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=interval, id='nas_check',
-                       start_date=datetime.now() + timedelta(seconds=30))
+
+    if schedule_type == 'daily':
+        try:
+            hour, minute = [int(x) for x in schedule_time_str.split(':')]
+        except (ValueError, AttributeError):
+            hour, minute = 8, 0
+        nas_dt = datetime(2000, 1, 1, hour, minute) + timedelta(minutes=2)
+        _scheduler.add_job(func=lambda: check_email('server'), trigger='cron',
+                           hour=hour, minute=minute, id='server_check')
+        _scheduler.add_job(func=lambda: check_email('nas'), trigger='cron',
+                           hour=nas_dt.hour, minute=nas_dt.minute, id='nas_check')
+        print(f"Scheduler started — daily server check at {hour:02d}:{minute:02d}, NAS at {nas_dt.hour:02d}:{nas_dt.minute:02d}")
+    else:
+        _scheduler.add_job(func=lambda: check_email('server'), trigger="date", run_date=datetime.now())
+        _scheduler.add_job(func=lambda: check_email('nas'), trigger="date", run_date=datetime.now() + timedelta(seconds=10))
+        _scheduler.add_job(func=lambda: check_email('server'), trigger="interval", minutes=interval, id='server_check')
+        _scheduler.add_job(func=lambda: check_email('nas'), trigger="interval", minutes=interval, id='nas_check',
+                           start_date=datetime.now() + timedelta(seconds=30))
+        print(f"Scheduler started — checking both email accounts immediately and then every {interval} minute(s)")
+
     _scheduler.start()
-    print(f"Scheduler started — checking both email accounts immediately and then every {interval} minute(s)")
 
 
-def reschedule(interval_minutes):
+def reschedule():
     global _scheduler
-    if _scheduler and _scheduler.running:
-        _scheduler.reschedule_job('server_check', trigger='interval', minutes=interval_minutes)
-        _scheduler.reschedule_job('nas_check', trigger='interval', minutes=interval_minutes)
-        print(f"Scheduler updated to every {interval_minutes} minute(s)")
+    if not _scheduler or not _scheduler.running:
+        return
+
+    with app.app_context():
+        schedule_type = get_config('schedule_type', 'daily') or 'daily'
+        schedule_time_str = get_config('schedule_time', '08:00') or '08:00'
+        interval = int(get_config('schedule_interval_minutes', '60') or '60')
+
+    for job_id in ('server_check', 'nas_check'):
+        try:
+            _scheduler.remove_job(job_id)
+        except Exception:
+            pass
+
+    if schedule_type == 'daily':
+        try:
+            hour, minute = [int(x) for x in schedule_time_str.split(':')]
+        except (ValueError, AttributeError):
+            hour, minute = 8, 0
+        nas_dt = datetime(2000, 1, 1, hour, minute) + timedelta(minutes=2)
+        _scheduler.add_job(func=lambda: check_email('server'), trigger='cron',
+                           hour=hour, minute=minute, id='server_check')
+        _scheduler.add_job(func=lambda: check_email('nas'), trigger='cron',
+                           hour=nas_dt.hour, minute=nas_dt.minute, id='nas_check')
+        print(f"Scheduler updated — daily server check at {hour:02d}:{minute:02d}, NAS at {nas_dt.hour:02d}:{nas_dt.minute:02d}")
+    else:
+        _scheduler.add_job(func=lambda: check_email('server'), trigger='interval',
+                           minutes=interval, id='server_check')
+        _scheduler.add_job(func=lambda: check_email('nas'), trigger='interval',
+                           minutes=interval, id='nas_check',
+                           start_date=datetime.now() + timedelta(seconds=30))
+        print(f"Scheduler updated to every {interval} minute(s)")
 
 @app.route('/parsing-logic')
 def parsing_logic():
@@ -923,7 +967,9 @@ def configuration_page():
     nas_inbox = os.getenv('NAS_EMAIL', 'not set')
     imap_server = os.getenv('IMAP_SERVER', 'not set')
     nas_imap_server = os.getenv('NAS_IMAP_SERVER', 'not set')
-    scheduler_interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+    schedule_type = get_config('schedule_type', 'daily') or 'daily'
+    schedule_time = get_config('schedule_time', '08:00') or '08:00'
+    schedule_interval_minutes = int(get_config('schedule_interval_minutes', '60') or '60')
     ai_parsing_enabled = (get_config('ai_parsing_enabled', 'true') or 'true').lower() == 'true'
     ai_prompt_server = get_config('ai_prompt_server', DEFAULT_SERVER_PROMPT)
     ai_prompt_nas = get_config('ai_prompt_nas', DEFAULT_NAS_PROMPT)
@@ -932,7 +978,9 @@ def configuration_page():
                            nas_inbox=nas_inbox,
                            imap_server=imap_server,
                            nas_imap_server=nas_imap_server,
-                           scheduler_interval=scheduler_interval,
+                           schedule_type=schedule_type,
+                           schedule_time=schedule_time,
+                           schedule_interval_minutes=schedule_interval_minutes,
                            ai_parsing_enabled=ai_parsing_enabled,
                            ai_prompt_server=ai_prompt_server,
                            ai_prompt_nas=ai_prompt_nas,
@@ -1012,7 +1060,9 @@ with app.app_context():
     defaults = {
         'ai_prompt_server': DEFAULT_SERVER_PROMPT,
         'ai_prompt_nas': DEFAULT_NAS_PROMPT,
-        'scheduler_interval_minutes': '5',
+        'schedule_type': 'daily',
+        'schedule_time': '08:00',
+        'schedule_interval_minutes': '60',
         'ai_parsing_enabled': 'true',
     }
     for key, value in defaults.items():
@@ -1383,13 +1433,26 @@ def _build_status_summary():
         }
         total_servers += total
 
-    scheduler_interval = int(get_config('scheduler_interval_minutes', '5') or '5')
+    schedule_type = get_config('schedule_type', 'daily') or 'daily'
+    schedule_info = {'schedule_type': schedule_type}
+    if schedule_type == 'daily':
+        schedule_info['schedule_time'] = get_config('schedule_time', '08:00') or '08:00'
+    else:
+        schedule_info['schedule_interval_minutes'] = int(get_config('schedule_interval_minutes', '60') or '60')
+
+    next_run = None
+    if _scheduler and _scheduler.running:
+        job = _scheduler.get_job('server_check')
+        if job and job.next_run_time:
+            next_run = job.next_run_time.isoformat()
+    if next_run:
+        schedule_info['next_run'] = next_run
 
     return {
         'last_fetched': last_fetched,
         'total_servers': total_servers,
         'breakdown': breakdown,
-        'scheduler_interval_minutes': scheduler_interval,
+        **schedule_info,
     }
 
 
@@ -1479,18 +1542,43 @@ def api_servers():
 @login_required
 def save_settings():
     data = request.get_json() or {}
-    interval = data.get('scheduler_interval_minutes')
+    schedule_type = data.get('schedule_type')
+    schedule_time = data.get('schedule_time')
+    schedule_interval_minutes = data.get('schedule_interval_minutes')
     ai_enabled = data.get('ai_parsing_enabled')
 
-    if interval is not None:
+    schedule_changed = False
+
+    if schedule_type is not None:
+        if schedule_type not in ('daily', 'interval'):
+            return jsonify({'success': False, 'message': 'Invalid schedule type'})
+        set_config('schedule_type', schedule_type)
+        schedule_changed = True
+
+    if schedule_time is not None:
+        if not re.match(r'^\d{2}:\d{2}$', schedule_time):
+            return jsonify({'success': False, 'message': 'Time must be in HH:MM format'})
         try:
-            interval = int(interval)
-            if not 1 <= interval <= 60:
-                return jsonify({'success': False, 'message': 'Interval must be between 1 and 60 minutes'})
-            set_config('scheduler_interval_minutes', str(interval))
-            reschedule(interval)
+            h, m = int(schedule_time[:2]), int(schedule_time[3:])
+            if not (0 <= h <= 23 and 0 <= m <= 59):
+                raise ValueError
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Invalid time value'})
+        set_config('schedule_time', schedule_time)
+        schedule_changed = True
+
+    if schedule_interval_minutes is not None:
+        try:
+            interval = int(schedule_interval_minutes)
+            if not 1 <= interval <= 1440:
+                return jsonify({'success': False, 'message': 'Interval must be between 1 and 1440 minutes'})
+            set_config('schedule_interval_minutes', str(interval))
+            schedule_changed = True
         except (ValueError, TypeError):
             return jsonify({'success': False, 'message': 'Invalid interval value'})
+
+    if schedule_changed:
+        reschedule()
 
     if ai_enabled is not None:
         set_config('ai_parsing_enabled', 'true' if ai_enabled else 'false')

@@ -66,40 +66,71 @@
     });
   });
 
-  // ── Scheduler interval edit ──────────────────────────────────────────────────
+  // ── Scheduler section ────────────────────────────────────────────────────────
 
   var editBtn = document.getElementById('editSchedulerBtn');
   var editForm = document.getElementById('schedulerEditForm');
   var cancelBtn = document.getElementById('cancelSchedulerBtn');
   var saveSchedulerBtn = document.getElementById('saveSchedulerBtn');
-  var schedulerInput = document.getElementById('schedulerIntervalInput');
-  var schedulerDisplay = document.getElementById('schedulerDisplay');
+  var scheduleTypeSelect = document.getElementById('scheduleTypeSelect');
+  var scheduleTimeInput = document.getElementById('scheduleTimeInput');
+  var scheduleIntervalInput = document.getElementById('scheduleIntervalInput');
+  var dailyOptions = document.getElementById('dailyOptions');
+  var intervalOptions = document.getElementById('intervalOptions');
+  var schedulerSummary = document.getElementById('schedulerSummary');
+
+  if (scheduleTypeSelect) {
+    scheduleTypeSelect.addEventListener('change', function () {
+      var isDaily = scheduleTypeSelect.value === 'daily';
+      if (dailyOptions) dailyOptions.style.display = isDaily ? 'flex' : 'none';
+      if (intervalOptions) intervalOptions.style.display = isDaily ? 'none' : 'flex';
+    });
+  }
 
   if (editBtn) {
     editBtn.addEventListener('click', function () {
       editForm.style.display = 'flex';
       editBtn.style.display = 'none';
-      if (schedulerInput) schedulerInput.focus();
     });
   }
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', function () {
       editForm.style.display = 'none';
-      editBtn.style.display = '';
+      if (editBtn) editBtn.style.display = '';
     });
   }
 
   if (saveSchedulerBtn) {
     saveSchedulerBtn.addEventListener('click', function () {
-      var val = parseInt(schedulerInput.value, 10);
-      if (isNaN(val) || val < 1 || val > 60) {
-        showToast('Interval must be between 1 and 60 minutes.', 'error');
-        return;
+      var scheduleType = scheduleTypeSelect ? scheduleTypeSelect.value : 'daily';
+      var payload = { schedule_type: scheduleType };
+
+      if (scheduleType === 'daily') {
+        var timeVal = scheduleTimeInput ? scheduleTimeInput.value : '';
+        if (!timeVal || !/^\d{2}:\d{2}$/.test(timeVal)) {
+          showToast('Please enter a valid time in HH:MM format.', 'error');
+          return;
+        }
+        payload.schedule_time = timeVal;
+      } else {
+        var intervalVal = scheduleIntervalInput ? parseInt(scheduleIntervalInput.value, 10) : NaN;
+        if (isNaN(intervalVal) || intervalVal < 1 || intervalVal > 1440) {
+          showToast('Interval must be between 1 and 1440 minutes.', 'error');
+          return;
+        }
+        payload.schedule_interval_minutes = intervalVal;
       }
-      postJSON('/configuration/save-settings', { scheduler_interval_minutes: val }, saveSchedulerBtn, function () {
-        var label = 'Every ' + val + ' minute' + (val === 1 ? '' : 's');
-        if (schedulerDisplay) schedulerDisplay.textContent = label;
+
+      postJSON('/configuration/save-settings', payload, saveSchedulerBtn, function () {
+        var label;
+        if (scheduleType === 'daily') {
+          label = 'Daily at ' + payload.schedule_time;
+        } else {
+          var m = payload.schedule_interval_minutes;
+          label = 'Every ' + m + ' minute' + (m === 1 ? '' : 's');
+        }
+        if (schedulerSummary) schedulerSummary.textContent = label;
         editForm.style.display = 'none';
         if (editBtn) editBtn.style.display = '';
       });

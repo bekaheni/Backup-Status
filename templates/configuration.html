@@ -274,17 +274,36 @@
       <span style="color: var(--muted); min-width: 160px;">NAS IMAP Host</span>
       <span>{{ nas_imap_server }}</span>
     </div>
-    <div class="info-row" style="align-items: center;">
-      <span style="color: var(--muted); min-width: 160px;">Scheduler</span>
-      <span id="schedulerDisplay">Every {{ scheduler_interval }} minute{{ 's' if scheduler_interval != 1 else '' }}</span>
-      <button class="btn btn-secondary" id="editSchedulerBtn" style="margin-left: 12px; padding: 4px 12px; font-size: 13px;">Edit</button>
-    </div>
-    <div class="inline-edit-form" id="schedulerEditForm" style="display: none;">
-      <span style="color: var(--muted); font-size: 14px;">Check every</span>
-      <input type="number" id="schedulerIntervalInput" min="1" max="60" value="{{ scheduler_interval }}">
-      <span style="color: var(--muted); font-size: 14px;">minutes</span>
-      <button class="btn btn-primary" id="saveSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Save</button>
-      <button class="btn btn-secondary" id="cancelSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Cancel</button>
+    <div class="info-row" style="align-items: flex-start;">
+      <span style="color: var(--muted); min-width: 160px; padding-top: 4px;">Scheduler</span>
+      <div style="flex: 1;">
+        <div id="schedulerDisplay" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span id="schedulerSummary">{% if schedule_type == 'daily' %}Daily at {{ schedule_time }}{% else %}Every {{ schedule_interval_minutes }} minute{{ 's' if schedule_interval_minutes != 1 else '' }}{% endif %}</span>
+          <button class="btn btn-secondary" id="editSchedulerBtn" style="padding: 4px 12px; font-size: 13px;">Edit</button>
+        </div>
+        <div id="schedulerEditForm" style="display: none; flex-direction: column; gap: 12px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span style="color: var(--muted); font-size: 14px; min-width: 60px;">Type</span>
+            <select id="scheduleTypeSelect" style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
+              <option value="daily"{% if schedule_type == 'daily' %} selected{% endif %}>Daily at a set time</option>
+              <option value="interval"{% if schedule_type == 'interval' %} selected{% endif %}>Interval</option>
+            </select>
+          </div>
+          <div id="dailyOptions" style="display: {% if schedule_type == 'daily' %}flex{% else %}none{% endif %}; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span style="color: var(--muted); font-size: 14px; min-width: 60px;">Run at</span>
+            <input type="time" id="scheduleTimeInput" value="{{ schedule_time }}" style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
+          </div>
+          <div id="intervalOptions" style="display: {% if schedule_type == 'interval' %}flex{% else %}none{% endif %}; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span style="color: var(--muted); font-size: 14px; min-width: 60px;">Every</span>
+            <input type="number" id="scheduleIntervalInput" min="1" max="1440" value="{{ schedule_interval_minutes }}" style="width: 80px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
+            <span style="color: var(--muted); font-size: 14px;">minutes</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" id="saveSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Save Schedule</button>
+            <button class="btn btn-secondary" id="cancelSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

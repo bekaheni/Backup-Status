@@ -59,9 +59,17 @@
 
   // ── Last-fetched indicator ────────────────────────────────────────────────
 
-  function setLastFetched(isoString) {
+  function setLastFetched(isoString, nextRun) {
     var el = document.getElementById('lastFetched');
-    if (el) el.textContent = 'Last fetched: ' + relativeTime(isoString);
+    if (!el) return;
+    var text = 'Last fetched: ' + relativeTime(isoString);
+    if (nextRun) {
+      var d = new Date(nextRun);
+      var now = new Date();
+      var isToday = d.toDateString() === now.toDateString();
+      text += ' · Next: ' + (isToday ? 'today' : 'tomorrow') + ' at ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    el.textContent = text;
   }
 
   // ── Background poll ───────────────────────────────────────────────────────
@@ -71,7 +79,7 @@
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         if (!data) return;
-        setLastFetched(data.last_fetched);
+        setLastFetched(data.last_fetched, data.next_run);
         updateStatsStrip(data.breakdown);
       })
       .catch(function () {});
