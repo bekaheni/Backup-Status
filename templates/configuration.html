@@ -200,6 +200,42 @@
   outline: none;
   border-color: var(--accent);
 }
+
+/* Tab navigation */
+.config-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.config-tabs::-webkit-scrollbar { display: none; }
+
+.config-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.config-tab:hover { border-color: var(--accent); color: var(--text); }
+.config-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.config-tab--danger { color: var(--error); }
+
+/* Tab panels */
+.config-panel { display: none; }
+.config-panel.active { display: block; }
+
+/* Remove top margin from danger zone when inside a tab panel */
+.config-panel .danger-zone { margin-top: 0; }
 </style>
 {% endblock %}
 
@@ -209,143 +245,191 @@
   <h1>Configuration</h1>
 </div>
 
-<!-- Section 1: Connection Settings -->
-<div class="info-panel">
-  <div class="info-panel__title">Connection Settings</div>
-  <div class="info-row">
-    <span style="color: var(--muted); min-width: 160px;">Server Inbox</span>
-    <span>{{ server_inbox }}</span>
-  </div>
-  <div class="info-row">
-    <span style="color: var(--muted); min-width: 160px;">NAS Inbox</span>
-    <span>{{ nas_inbox }}</span>
-  </div>
-  <div class="info-row">
-    <span style="color: var(--muted); min-width: 160px;">IMAP Host</span>
-    <span>{{ imap_server }}</span>
-  </div>
-  <div class="info-row">
-    <span style="color: var(--muted); min-width: 160px;">NAS IMAP Host</span>
-    <span>{{ nas_imap_server }}</span>
-  </div>
-  <div class="info-row" style="align-items: center;">
-    <span style="color: var(--muted); min-width: 160px;">Scheduler</span>
-    <span id="schedulerDisplay">Every {{ scheduler_interval }} minute{{ 's' if scheduler_interval != 1 else '' }}</span>
-    <button class="btn btn-secondary" id="editSchedulerBtn" style="margin-left: 12px; padding: 4px 12px; font-size: 13px;">Edit</button>
-  </div>
-  <div class="inline-edit-form" id="schedulerEditForm" style="display: none;">
-    <span style="color: var(--muted); font-size: 14px;">Check every</span>
-    <input type="number" id="schedulerIntervalInput" min="1" max="60" value="{{ scheduler_interval }}">
-    <span style="color: var(--muted); font-size: 14px;">minutes</span>
-    <button class="btn btn-primary" id="saveSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Save</button>
-    <button class="btn btn-secondary" id="cancelSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Cancel</button>
-  </div>
+<!-- Tab navigation -->
+<div class="config-tabs" role="tablist">
+  <button class="config-tab" data-tab="connection" role="tab" aria-selected="true">Connection</button>
+  <button class="config-tab" data-tab="companies" role="tab" aria-selected="false">Companies</button>
+  <button class="config-tab" data-tab="ai-settings" role="tab" aria-selected="false">AI Settings</button>
+  <button class="config-tab" data-tab="how-it-works" role="tab" aria-selected="false">How It Works</button>
+  <button class="config-tab config-tab--danger" data-tab="danger-zone" role="tab" aria-selected="false">Danger Zone</button>
 </div>
 
-<!-- Section 2: Companies and Expected Servers -->
-<div class="info-panel" id="companiesPanel">
-  <div class="info-panel__title">Companies and Expected Servers</div>
-
-  <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-    <input type="text" id="newCompanyInput" placeholder="New company name…"
-           style="flex: 1; min-width: 200px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
-    <button class="btn btn-primary" id="addCompanyBtn" style="white-space: nowrap;">Add Company</button>
-  </div>
-
-  <div id="companiesList"></div>
-</div>
-
-<!-- Section 3: AI Parsing Settings -->
-<div class="info-panel">
-  <div class="info-panel__title">AI Parsing Settings</div>
-
-  <div class="info-row" style="align-items: center; gap: 12px; flex-wrap: wrap;">
-    <span style="color: var(--muted); min-width: 160px;">AI Parsing</span>
-    <label class="toggle-switch" title="Toggle AI parsing">
-      <input type="checkbox" id="aiParsingToggle" {% if ai_parsing_enabled %}checked{% endif %}>
-      <span class="toggle-slider"></span>
-    </label>
-    <span id="aiParsingLabel" style="font-size: 14px;">{{ 'Enabled' if ai_parsing_enabled else 'Disabled' }}</span>
-  </div>
-
-  <div class="info-row">
-    <span style="color: var(--muted); min-width: 160px;">AI Model</span>
-    <span class="badge-model">claude-haiku-4-5</span>
-  </div>
-
-  <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px;">
-    <div class="config-sub-header">Server Backup Prompt</div>
-    <textarea class="prompt-textarea" id="serverPrompt">{{ ai_prompt_server }}</textarea>
-    <div class="btn-row">
-      <button class="btn btn-primary" style="font-size: 13px;" data-save-prompt="server">Save Prompt</button>
-      <button class="btn btn-secondary" style="font-size: 13px;" data-reset-prompt="server">Reset to Default</button>
+<!-- Connection tab -->
+<div class="config-panel" id="tab-connection" role="tabpanel">
+  <div class="info-panel">
+    <div class="info-panel__title">Connection Settings</div>
+    <div class="info-row">
+      <span style="color: var(--muted); min-width: 160px;">Server Inbox</span>
+      <span>{{ server_inbox }}</span>
     </div>
-  </div>
-
-  <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px;">
-    <div class="config-sub-header">NAS Backup Prompt</div>
-    <textarea class="prompt-textarea" id="nasPrompt">{{ ai_prompt_nas }}</textarea>
-    <div class="btn-row">
-      <button class="btn btn-primary" style="font-size: 13px;" data-save-prompt="nas">Save Prompt</button>
-      <button class="btn btn-secondary" style="font-size: 13px;" data-reset-prompt="nas">Reset to Default</button>
+    <div class="info-row">
+      <span style="color: var(--muted); min-width: 160px;">NAS Inbox</span>
+      <span>{{ nas_inbox }}</span>
+    </div>
+    <div class="info-row">
+      <span style="color: var(--muted); min-width: 160px;">IMAP Host</span>
+      <span>{{ imap_server }}</span>
+    </div>
+    <div class="info-row">
+      <span style="color: var(--muted); min-width: 160px;">NAS IMAP Host</span>
+      <span>{{ nas_imap_server }}</span>
+    </div>
+    <div class="info-row" style="align-items: center;">
+      <span style="color: var(--muted); min-width: 160px;">Scheduler</span>
+      <span id="schedulerDisplay">Every {{ scheduler_interval }} minute{{ 's' if scheduler_interval != 1 else '' }}</span>
+      <button class="btn btn-secondary" id="editSchedulerBtn" style="margin-left: 12px; padding: 4px 12px; font-size: 13px;">Edit</button>
+    </div>
+    <div class="inline-edit-form" id="schedulerEditForm" style="display: none;">
+      <span style="color: var(--muted); font-size: 14px;">Check every</span>
+      <input type="number" id="schedulerIntervalInput" min="1" max="60" value="{{ scheduler_interval }}">
+      <span style="color: var(--muted); font-size: 14px;">minutes</span>
+      <button class="btn btn-primary" id="saveSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Save</button>
+      <button class="btn btn-secondary" id="cancelSchedulerBtn" style="padding: 5px 14px; font-size: 13px;">Cancel</button>
     </div>
   </div>
 </div>
 
-<!-- Section 4: How Email Parsing Works -->
-<div class="info-panel">
-  <div class="info-panel__title">How Email Parsing Works</div>
+<!-- Companies tab -->
+<div class="config-panel" id="tab-companies" role="tabpanel">
+  <div class="info-panel" id="companiesPanel">
+    <div class="info-panel__title">Companies and Expected Servers</div>
 
-  <div style="margin-bottom: 20px;">
-    <div class="config-sub-header">AI-Powered Parsing</div>
-    <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
-      Each incoming email is sent to <strong>Claude Haiku</strong> along with the configured prompt for that inbox type. Claude reads the email content and determines whether it is a daily backup status report or something to ignore — such as a monthly summary, a licence warning, or a marketing email.<br><br>
-      For daily status emails, Claude extracts structured data for each server: the server name, whether the backup was successful or unsuccessful, and the timestamp from the backup column. This structured data is saved to the database.<br><br>
-      If Claude is unavailable or the API call fails for any reason, the system automatically falls back to the built-in <strong>regex parser</strong>, so monitoring continues uninterrupted.
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+      <input type="text" id="newCompanyInput" placeholder="New company name…"
+             style="flex: 1; min-width: 200px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 14px;">
+      <button class="btn btn-primary" id="addCompanyBtn" style="white-space: nowrap;">Add Company</button>
     </div>
-  </div>
 
-  <div style="border-top: 1px solid var(--border); padding-top: 20px;">
-    <div class="config-sub-header">Regex Fallback</div>
-    <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
-      The regex parser acts as a safety net if the AI is unavailable. For server emails it looks for lines in the format:<br>
-      <code style="background: var(--bg); color: var(--accent); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 13px;">ServerName (ServerID) Success/Failed Date Time</code><br><br>
-      For NAS emails it determines status from the subject line and extracts the device name and timestamp using pattern matching.
+    <div id="companiesList"></div>
+  </div>
+</div>
+
+<!-- AI Settings tab -->
+<div class="config-panel" id="tab-ai-settings" role="tabpanel">
+  <div class="info-panel">
+    <div class="info-panel__title">AI Parsing Settings</div>
+
+    <div class="info-row" style="align-items: center; gap: 12px; flex-wrap: wrap;">
+      <span style="color: var(--muted); min-width: 160px;">AI Parsing</span>
+      <label class="toggle-switch" title="Toggle AI parsing">
+        <input type="checkbox" id="aiParsingToggle" {% if ai_parsing_enabled %}checked{% endif %}>
+        <span class="toggle-slider"></span>
+      </label>
+      <span id="aiParsingLabel" style="font-size: 14px;">{{ 'Enabled' if ai_parsing_enabled else 'Disabled' }}</span>
+    </div>
+
+    <div class="info-row">
+      <span style="color: var(--muted); min-width: 160px;">AI Model</span>
+      <span class="badge-model">claude-haiku-4-5</span>
+    </div>
+
+    <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px;">
+      <div class="config-sub-header">Server Backup Prompt</div>
+      <textarea class="prompt-textarea" id="serverPrompt">{{ ai_prompt_server }}</textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="font-size: 13px;" data-save-prompt="server">Save Prompt</button>
+        <button class="btn btn-secondary" style="font-size: 13px;" data-reset-prompt="server">Reset to Default</button>
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px;">
+      <div class="config-sub-header">NAS Backup Prompt</div>
+      <textarea class="prompt-textarea" id="nasPrompt">{{ ai_prompt_nas }}</textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="font-size: 13px;" data-save-prompt="nas">Save Prompt</button>
+        <button class="btn btn-secondary" style="font-size: 13px;" data-reset-prompt="nas">Reset to Default</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Section 5: Danger Zone -->
-<div class="danger-zone">
-  <div class="danger-zone__title">Danger Zone</div>
-  <div class="danger-zone__desc">These actions are irreversible and should be used with caution.</div>
+<!-- How It Works tab -->
+<div class="config-panel" id="tab-how-it-works" role="tabpanel">
+  <div class="info-panel">
+    <div class="info-panel__title">How Email Parsing Works</div>
 
-  <div class="danger-zone__item">
-    <div class="danger-zone__item-info">
-      <strong>Clear Server Database</strong>
-      <span>Delete all server backup records from the database</span>
+    <div style="margin-bottom: 20px;">
+      <div class="config-sub-header">AI-Powered Parsing</div>
+      <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
+        Each incoming email is sent to <strong>Claude Haiku</strong> along with the configured prompt for that inbox type. Claude reads the email content and determines whether it is a daily backup status report or something to ignore — such as a monthly summary, a licence warning, or a marketing email.<br><br>
+        For daily status emails, Claude extracts structured data for each server: the server name, whether the backup was successful or unsuccessful, and the timestamp from the backup column. This structured data is saved to the database.<br><br>
+        If Claude is unavailable or the API call fails for any reason, the system automatically falls back to the built-in <strong>regex parser</strong>, so monitoring continues uninterrupted.
+      </div>
     </div>
-    <button class="btn btn-danger" data-action="clear-server">Clear Server Database</button>
+
+    <div style="border-top: 1px solid var(--border); padding-top: 20px;">
+      <div class="config-sub-header">Regex Fallback</div>
+      <div style="font-size: 14px; color: var(--text); line-height: 1.7;">
+        The regex parser acts as a safety net if the AI is unavailable. For server emails it looks for lines in the format:<br>
+        <code style="background: var(--bg); color: var(--accent); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 13px;">ServerName (ServerID) Success/Failed Date Time</code><br><br>
+        For NAS emails it determines status from the subject line and extracts the device name and timestamp using pattern matching.
+      </div>
+    </div>
   </div>
+</div>
 
-  <div class="danger-zone__item">
-    <div class="danger-zone__item-info">
-      <strong>Clear NAS Database</strong>
-      <span>Delete all NAS backup records from the database</span>
-    </div>
-    <button class="btn btn-danger" data-action="clear-nas">Clear NAS Database</button>
-  </div>
+<!-- Danger Zone tab -->
+<div class="config-panel" id="tab-danger-zone" role="tabpanel">
+  <div class="danger-zone">
+    <div class="danger-zone__title">Danger Zone</div>
+    <div class="danger-zone__desc">These actions are irreversible and should be used with caution.</div>
 
-  <div class="danger-zone__item">
-    <div class="danger-zone__item-info">
-      <strong>Delete Old Emails</strong>
-      <span>Permanently delete emails older than 10 days from both inboxes</span>
+    <div class="danger-zone__item">
+      <div class="danger-zone__item-info">
+        <strong>Clear Server Database</strong>
+        <span>Delete all server backup records from the database</span>
+      </div>
+      <button class="btn btn-danger" data-action="clear-server">Clear Server Database</button>
     </div>
-    <button class="btn btn-danger" data-action="delete-emails">Delete Old Emails</button>
+
+    <div class="danger-zone__item">
+      <div class="danger-zone__item-info">
+        <strong>Clear NAS Database</strong>
+        <span>Delete all NAS backup records from the database</span>
+      </div>
+      <button class="btn btn-danger" data-action="clear-nas">Clear NAS Database</button>
+    </div>
+
+    <div class="danger-zone__item">
+      <div class="danger-zone__item-info">
+        <strong>Delete Old Emails</strong>
+        <span>Permanently delete emails older than 10 days from both inboxes</span>
+      </div>
+      <button class="btn btn-danger" data-action="delete-emails">Delete Old Emails</button>
+    </div>
   </div>
 </div>
 
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <script src="{{ url_for('static', filename='js/companies.js') }}"></script>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'cs-config-tab';
+  var VALID_TABS = ['connection', 'companies', 'ai-settings', 'how-it-works', 'danger-zone'];
+  var tabs = document.querySelectorAll('.config-tab');
+  var panels = document.querySelectorAll('.config-panel');
+
+  function activate(tabId) {
+    tabs.forEach(function (t) {
+      var isActive = t.dataset.tab === tabId;
+      t.classList.toggle('active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      p.classList.toggle('active', p.id === 'tab-' + tabId);
+    });
+    try { localStorage.setItem(STORAGE_KEY, tabId); } catch (e) {}
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () { activate(tab.dataset.tab); });
+  });
+
+  var saved;
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  activate((saved && VALID_TABS.indexOf(saved) !== -1) ? saved : 'connection');
+}());
+</script>
 
 {% endblock %}
