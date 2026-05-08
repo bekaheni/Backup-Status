@@ -82,7 +82,8 @@
                  data-server="{{ latest.server }}"
                  data-subject="{{ latest.subject }}"
                  data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-                 data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+                 data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
+                 data-ai-summary="{{ latest.ai_summary|default('')|replace('"', '&quot;')|replace("'", '&#39;') }}">
               <span class="attention-dot attention-dot--error"></span>
               {{ clean_server_name(latest.server) }} — {{ latest.company or 'Unknown' }}
             </div>
@@ -129,7 +130,8 @@
              data-server="{{ latest.server }}"
              data-subject="{{ latest.subject }}"
              data-timestamp="{{ latest.timestamp.strftime('%d/%m/%Y %H:%M') }}"
-             data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}">
+             data-body="{{ latest.html_body|default(latest.body)|replace('"', '&quot;')|replace("'", '&#39;')|safe }}"
+             data-ai-summary="{{ latest.ai_summary|default('')|replace('"', '&quot;')|replace("'", '&#39;') }}">
           <span class="status-pill {% if is_success %}status-pill--success{% else %}status-pill--error{% endif %}">
             {% if is_success %}OK{% else %}Failed{% endif %}
           </span>

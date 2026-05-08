@@ -7,11 +7,23 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('modalServer').textContent = button.getAttribute('data-server');
             document.getElementById('modalSubject').textContent = button.getAttribute('data-subject');
             document.getElementById('modalTimestamp').textContent = button.getAttribute('data-timestamp');
-            
+
             // Sanitize email body content
             var emailBody = button.getAttribute('data-body');
             var sanitizedBody = sanitizeEmailContent(emailBody);
             document.getElementById('modalBody').textContent = sanitizedBody;
+
+            // AI Summary section
+            var summary = button.getAttribute('data-ai-summary') || '';
+            var summarySection = document.getElementById('aiSummarySection');
+            var summaryBox = document.getElementById('modalAiSummary');
+            if (summary && summary.trim()) {
+                summaryBox.textContent = summary.trim();
+                summarySection.style.display = '';
+            } else {
+                summaryBox.textContent = '';
+                summarySection.style.display = 'none';
+            }
         });
     }
 });

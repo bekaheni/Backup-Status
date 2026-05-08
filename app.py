@@ -131,9 +131,10 @@ class BackupStatus(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     subject = db.Column(db.String(200))
     body = db.Column(db.Text)
-    html_body = db.Column(db.Text)  # Add HTML body field
+    html_body = db.Column(db.Text)
+    ai_summary = db.Column(db.Text, nullable=True)
     company = db.Column(db.String(100))
-    email_type = db.Column(db.String(50), nullable=True)  # Add email_type field
+    email_type = db.Column(db.String(50), nullable=True)
     cleared_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 
@@ -491,14 +492,38 @@ def parse_email_with_ai(subject, body, html_body, email_type, email_timestamp=No
             results.append({'server': server_name, 'status': status, 'timestamp': timestamp})
 
         print(f"AI parser extracted {len(results)} result(s)")
-        return results
+
+        # Generate plain-English summary
+        if not results:
+            ai_summary = "This email was not a backup status report and was ignored by the parser."
+        else:
+            try:
+                summary_prompt = (
+                    "You are summarising a backup status email for a non-technical manager. "
+                    "Write 2-4 sentences in plain English covering: which servers backed up successfully and which failed, "
+                    "any error messages explained simply, and any other noteworthy information such as warnings or recurring patterns. "
+                    "Do not use technical jargon. Do not include any headings or bullet points — plain prose only."
+                )
+                summary_resp = client.messages.create(
+                    model="claude-haiku-4-5",
+                    max_tokens=300,
+                    system=summary_prompt,
+                    messages=[{"role": "user", "content": user_message}]
+                )
+                ai_summary = summary_resp.content[0].text.strip()
+                print(f"AI summary generated ({len(ai_summary)} chars)")
+            except Exception as se:
+                print(f"AI summary generation failed: {se}")
+                ai_summary = None
+
+        return results, ai_summary
 
     except Exception as e:
         print(f"AI parsing failed ({type(e).__name__}: {e}), falling back to regex parser")
         if email_type == 'nas':
-            return parse_nas_backup_status(body, subject)
+            return parse_nas_backup_status(body, subject), None
         else:
-            return parse_backup_status(body, email_timestamp)
+            return parse_backup_status(body, email_timestamp), None
 
 
 def check_email(email_type='server'):
@@ -602,7 +627,7 @@ def check_email(email_type='server'):
                     print(f"Email body snippet: {body[:300]}\n{'-'*40}")
 
                     # Parse for server statuses using AI parser (with regex fallback)
-                    statuses = parse_email_with_ai(subject, body, html_body, email_type, email_timestamp)
+                    statuses, ai_summary = parse_email_with_ai(subject, body, html_body, email_type, email_timestamp)
                     print(f"Found {len(statuses)} backup statuses in email")
 
                     for s in statuses:
@@ -610,7 +635,7 @@ def check_email(email_type='server'):
                         existing = BackupStatus.query.filter_by(
                             server=s['server'],
                             timestamp=s['timestamp'],
-                            email_type=email_type  # Add email_type to filter
+                            email_type=email_type
                         ).first()
 
                         if not existing:
@@ -622,6 +647,7 @@ def check_email(email_type='server'):
                                 subject=subject,
                                 body=body or "",
                                 html_body=html_body or "",
+                                ai_summary=ai_summary,
                                 company=get_company_for_server(s['server'], email_type),
                                 email_type=email_type
                             )
@@ -965,6 +991,13 @@ def manual_refresh():
 # Initialize the database and create admin user
 with app.app_context():
     db.create_all()
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as _conn:
+            _conn.execute(text('ALTER TABLE backup_status ADD COLUMN ai_summary TEXT'))
+            _conn.commit()
+    except Exception:
+        pass
     # Check if admin user exists
     admin = User.query.filter_by(username='admin').first()
     if not admin:
@@ -1416,6 +1449,7 @@ def api_servers():
                 'timestamp': r.timestamp.isoformat(),
                 'timestamp_relative': _relative_time(r.timestamp),
                 'subject': r.subject,
+                'ai_summary': r.ai_summary or '',
                 'is_latest': True,
             }
             for r in by_company.get(company, [])

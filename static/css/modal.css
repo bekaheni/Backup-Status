@@ -115,6 +115,21 @@
     word-break: break-word;
 }
 
+/* AI Summary Section */
+.ai-summary-section {
+    margin-bottom: 1.2rem;
+}
+
+.ai-summary-box {
+    background: #e8f4fd;
+    border: 1px solid #90caf9;
+    border-radius: var(--radius-card);
+    padding: 1rem 1.2rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #1a3a52;
+}
+
 /* Email Content Section */
 .email-content-section {
     margin-top: 1rem;

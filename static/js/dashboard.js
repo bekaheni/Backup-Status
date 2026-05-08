@@ -90,6 +90,7 @@
     card.setAttribute('data-server', entry.server || '');
     card.setAttribute('data-subject', entry.subject || '');
     card.setAttribute('data-timestamp', fmtModal(entry.timestamp));
+    card.setAttribute('data-ai-summary', entry.ai_summary || '');
 
     var pill = document.createElement('span');
     pill.className = 'status-pill ' + (isSuccess ? 'status-pill--success' : 'status-pill--error');
@@ -241,6 +242,7 @@
         row.setAttribute('data-server', entry.server.server || '');
         row.setAttribute('data-subject', entry.server.subject || '');
         row.setAttribute('data-timestamp', fmtModal(entry.server.timestamp));
+        row.setAttribute('data-ai-summary', entry.server.ai_summary || '');
         var dot = document.createElement('span');
         dot.className = 'attention-dot attention-dot--error';
         row.appendChild(dot);
