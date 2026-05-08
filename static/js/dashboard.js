@@ -400,6 +400,69 @@
 
   // ── Fetch-now button ──────────────────────────────────────────────────────
 
+  var _fetchPollTimer = null;
+
+  function _stopFetchPoll() {
+    if (_fetchPollTimer) {
+      clearInterval(_fetchPollTimer);
+      _fetchPollTimer = null;
+    }
+  }
+
+  function _onFetchComplete(hadError, errorMsg) {
+    _stopFetchPoll();
+    var fetchBtn = document.getElementById('fetchBtn');
+    if (fetchBtn) {
+      fetchBtn.classList.remove('loading');
+      fetchBtn.disabled = false;
+    }
+    if (hadError) {
+      showToast('Fetch error: ' + (errorMsg || 'unknown error'), 'error');
+      return;
+    }
+    fetch('/api/servers?type=' + pageType)
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (data) { renderCompanies(data.companies); applyFilters(); }
+      })
+      .catch(function () {});
+    fetch('/api/refresh-status')
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        setLastFetched(data.last_fetched, data.next_run);
+        updateStatsStrip(data.breakdown);
+        var breakdown = data.breakdown[pageType] || {};
+        var successful = breakdown.successful || 0;
+        var unsuccessful = breakdown.unsuccessful || 0;
+        var msg = successful + ' server' + (successful !== 1 ? 's' : '') + ' updated';
+        if (unsuccessful > 0) msg += ', ' + unsuccessful + ' failed';
+        showToast(msg, unsuccessful > 0 ? 'error' : 'success');
+      })
+      .catch(function () {});
+  }
+
+  function _pollFetchStatus() {
+    fetch('/api/fetch-status')
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        var lastFetchedEl = document.getElementById('lastFetched');
+        if (data.running) {
+          if (lastFetchedEl) {
+            var progress = 'Fetching...';
+            if (data.server_count >= 0 && data.nas_count < 0) {
+              progress = 'Fetching... (server emails done, NAS in progress)';
+            }
+            lastFetchedEl.textContent = progress;
+          }
+        } else if (data.completed_at) {
+          _onFetchComplete(!!data.error, data.error);
+        }
+      })
+      .catch(function () { _onFetchComplete(true, 'status check failed'); });
+  }
+
   function handleFetchNow() {
     var fetchBtn = document.getElementById('fetchBtn');
     if (!fetchBtn || fetchBtn.disabled) return;
@@ -407,38 +470,23 @@
     fetchBtn.disabled = true;
     fetchBtn.classList.add('loading');
 
-    var savedSummary;
-
     fetch('/api/refresh', { method: 'POST' })
       .then(function (res) {
         if (!res.ok) throw new Error('refresh failed');
         return res.json();
       })
-      .then(function (summary) {
-        savedSummary = summary;
-        var breakdown = summary.breakdown[pageType] || {};
-        var successful = breakdown.successful || 0;
-        var unsuccessful = breakdown.unsuccessful || 0;
-        var msg = successful + ' server' + (successful !== 1 ? 's' : '') + ' updated';
-        if (unsuccessful > 0) msg += ', ' + unsuccessful + ' failed';
-        showToast(msg, unsuccessful > 0 ? 'error' : 'success');
-        return fetch('/api/servers?type=' + pageType);
-      })
-      .then(function (res) {
-        if (!res.ok) throw new Error('servers fetch failed');
-        return res.json();
-      })
       .then(function (data) {
-        renderCompanies(data.companies);
-        if (savedSummary) updateStatsStrip(savedSummary.breakdown);
-        var lastFetchedEl = document.getElementById('lastFetched');
-        if (lastFetchedEl) lastFetchedEl.textContent = 'Last fetched: just now';
-        applyFilters();
+        if (data.status === 'started' || data.status === 'already_running') {
+          _stopFetchPoll();
+          _fetchPollTimer = setInterval(_pollFetchStatus, 2000);
+          _pollFetchStatus();
+        } else {
+          fetchBtn.classList.remove('loading');
+          fetchBtn.disabled = false;
+        }
       })
       .catch(function () {
         showToast('Fetch failed — check your network connection.', 'error');
-      })
-      .finally(function () {
         fetchBtn.classList.remove('loading');
         fetchBtn.disabled = false;
       });

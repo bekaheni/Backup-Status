@@ -10,6 +10,7 @@ EnvironmentFile=/opt/backup-status/.env
 ExecStartPre=/bin/rm -f /tmp/scheduler.lock
 ExecStart=/opt/backup-status/venv/bin/gunicorn \
     --workers 2 \
+    --timeout 300 \
     --bind unix:/opt/backup-status/backup-status.sock \
     app:app
 Restart=on-failure

@@ -2,6 +2,7 @@ import os
 import re
 import fcntl
 import json
+import threading
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -56,6 +57,15 @@ def clean_server_name(server_name):
 
 # Application version
 VERSION = "1.2.0"
+
+_fetch_state = {
+    'running': False,
+    'started_at': None,
+    'completed_at': None,
+    'server_count': -1,
+    'nas_count': -1,
+    'error': None,
+}
 
 # Load environment variables
 load_dotenv()
@@ -1465,9 +1475,57 @@ def api_refresh_status():
 @app.route('/api/refresh', methods=['POST'])
 @login_required
 def api_refresh():
-    check_email('server')
-    check_email('nas')
-    return jsonify(_build_status_summary())
+    global _fetch_state
+    if _fetch_state['running']:
+        return jsonify({
+            'status': 'already_running',
+            'started_at': _fetch_state['started_at'].isoformat() if _fetch_state['started_at'] else None,
+        })
+
+    _fetch_state['running'] = True
+    _fetch_state['started_at'] = datetime.utcnow()
+    _fetch_state['completed_at'] = None
+    _fetch_state['server_count'] = -1
+    _fetch_state['nas_count'] = -1
+    _fetch_state['error'] = None
+
+    def _run():
+        global _fetch_state
+        try:
+            with app.app_context():
+                before_server = BackupStatus.query.filter_by(email_type='server').count()
+            check_email('server')
+            with app.app_context():
+                after_server = BackupStatus.query.filter_by(email_type='server').count()
+            _fetch_state['server_count'] = max(0, after_server - before_server)
+
+            with app.app_context():
+                before_nas = BackupStatus.query.filter_by(email_type='nas').count()
+            check_email('nas')
+            with app.app_context():
+                after_nas = BackupStatus.query.filter_by(email_type='nas').count()
+            _fetch_state['nas_count'] = max(0, after_nas - before_nas)
+        except Exception as e:
+            _fetch_state['error'] = str(e)
+        finally:
+            _fetch_state['running'] = False
+            _fetch_state['completed_at'] = datetime.utcnow()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({'status': 'started'})
+
+
+@app.route('/api/fetch-status')
+@login_required
+def api_fetch_status():
+    return jsonify({
+        'running': _fetch_state['running'],
+        'started_at': _fetch_state['started_at'].isoformat() if _fetch_state['started_at'] else None,
+        'completed_at': _fetch_state['completed_at'].isoformat() if _fetch_state['completed_at'] else None,
+        'server_count': _fetch_state['server_count'],
+        'nas_count': _fetch_state['nas_count'],
+        'error': _fetch_state['error'],
+    })
 
 
 @app.route('/api/servers')
