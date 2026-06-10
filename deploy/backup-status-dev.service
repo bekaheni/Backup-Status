@@ -1,0 +1,29 @@
+[Unit]
+Description=Backup Status Dashboard (dev)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/backup-status-dev
+EnvironmentFile=/opt/backup-status-dev/.env
+RuntimeDirectory=backup-status-dev
+RuntimeDirectoryMode=0775
+UMask=007
+ExecStartPre=/bin/rm -f /tmp/scheduler.lock
+ExecStart=/opt/backup-status-dev/venv/bin/gunicorn \
+    --workers 2 \
+    --timeout 300 \
+    --bind unix:/run/backup-status-dev/backup-status.sock \
+    app:app
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-status-dev
+
+[Install]
+WantedBy=multi-user.target
